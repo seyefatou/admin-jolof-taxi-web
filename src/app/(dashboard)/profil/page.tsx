@@ -1,0 +1,244 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Icon } from "@iconify/react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { SERVICE_LOGIN } from "@/services/login-service";
+
+export default function ProfilPage() {
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [role, setRole] = useState("");
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await SERVICE_LOGIN.getinfoConnectUser();
+      if (res.status === 200) {
+        const user = res.data.data;
+        setName(user.name || "");
+        setEmail(user.email || "");
+        setPhone(user.phone?.replace("+221", "") || "");
+        setAddress(user.adresse || "");
+        setRole(user.role?.nameRole || "");
+      }
+    } catch (error) {
+      const storedName = localStorage.getItem("name");
+      const storedEmail = localStorage.getItem("email");
+      const storedRole = localStorage.getItem("role");
+      if (storedName) setName(storedName);
+      if (storedEmail) setEmail(storedEmail);
+      if (storedRole) setRole(storedRole);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email || !phone || !address) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const phoneFormatted = phone.startsWith("+221") ? phone : `+221${phone}`;
+      const res = await SERVICE_LOGIN.infoConnectUserUpdate(name, email, phoneFormatted, address);
+      if (res.status === 200) {
+        toast.success("Profil mis a jour avec succes");
+        localStorage.setItem("name", name);
+        localStorage.setItem("email", email);
+        setEditing(false);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de la mise a jour");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-4xl mx-auto">
+      <ToastContainer position="bottom-right" />
+
+      <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
+        <div className="p-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-gray-800">
+            <Icon icon="mdi:account-circle" className="inline mr-2" />
+            Mon Profil
+          </h1>
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
+            >
+              <Icon icon="mdi:pencil" className="inline mr-1" />
+              Modifier
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 h-32 relative">
+          <div className="absolute -bottom-16 left-8">
+            <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+              <span className="text-5xl font-bold text-yellow-500">
+                {name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-20 px-8 pb-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">{name}</h2>
+            <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
+              {role || "Administrateur"}
+            </span>
+          </div>
+
+          {editing ? (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nom complet
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Telephone
+                  </label>
+                  <div className="flex">
+                    <span className="px-4 py-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-600">
+                      +221
+                    </span>
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                      maxLength={9}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-3 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
+                >
+                  {submitting ? "Enregistrement..." : "Enregistrer"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:account" className="text-2xl text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Nom complet</p>
+                    <p className="font-medium text-gray-800">{name || "Non defini"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:email" className="text-2xl text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium text-gray-800">{email || "Non defini"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:phone" className="text-2xl text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Telephone</p>
+                    <p className="font-medium text-gray-800">
+                      {phone ? `+221 ${phone}` : "Non defini"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:map-marker" className="text-2xl text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Adresse</p>
+                    <p className="font-medium text-gray-800">{address || "Non defini"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

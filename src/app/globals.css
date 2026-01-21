@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Dancing+Script:wght@400..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -8,8 +10,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: 'Nunito', system-ui, Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +23,134 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Nunito', system-ui, Arial, sans-serif;
+}
+
+/* Animation fadeIn */
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 2s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Animation spin */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Styles pour l'element actif */
+.active div span.mohamadou {
+  background-color: rgb(250 204 21);
+}
+
+.active div span.lamine {
+  background-color: rgb(243 244 246);
+  font-weight: bold;
+  color: black !important;
+}
+
+/* Styles pour le dark mode */
+.dark .active div span.lamine {
+  background-color: black;
+  color: white !important;
+}
+
+.active div span span.gaye {
+  color: rgb(250 204 21);
+}
+
+.dark .active div span span.gaye {
+  color: rgb(250 204 21);
+}
+
+.bgtop {
+  background-image: url('/bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.custom-marker-label {
+  font-size: 20px;
+  color: white;
+  background-color: #fde047;
+  padding: 5px;
+  border-radius: 8px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  box-shadow: 3px -3px 6px -6px;
+  border: solid 2px black;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* React Toastify */
+.Toastify__toast-container {
+  z-index: 9999;
+}
+
+/* Custom Scrollbar Styles */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* Firefox */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* Override default browser focus colors */
+select:focus,
+input:focus,
+textarea:focus,
+button:focus {
+  outline: none;
+}
+
+/* Custom select styling */
+select {
+  background-image: none;
+}
+
+/* Remove default blue highlight on all form elements */
+input:focus,
+select:focus,
+textarea:focus {
+  --tw-ring-color: #fde047;
+  border-color: #facc15;
+}
+
+/* Remove blue highlight on click/tap for mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom focus ring color */
+*:focus-visible {
+  outline-color: #facc15;
 }

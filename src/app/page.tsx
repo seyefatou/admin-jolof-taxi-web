@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import InputIcon from "@/components/inputs/input-icon";
+import InputPassword from "@/components/inputs/input-password";
+import BtnPrimary from "@/components/buttons/btn-primary";
+import { SERVICE_LOGIN } from "@/services/login-service";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { LayoutAuth } from "@/components/layouts/layout-auth";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AUTH } from "@/common/urls/auth";
+import { TRAFIC } from "@/common/urls/trafic";
+
+export default function Login() {
+  const router = useRouter();
+  const [identify, setIdentify] = useState<string>("");
+  const [error, setError] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [remember, setRemember] = useState<boolean>(false);
+  const [password, setPassword] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedIdentify = localStorage.getItem("identify");
+      const savedPassword = localStorage.getItem("password");
+      const savedRemember = localStorage.getItem("remember");
+
+      if (savedIdentify) setIdentify(savedIdentify);
+      if (savedPassword) setPassword(savedPassword);
+      if (savedRemember === "true") setRemember(true);
+    }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      if (identify && password) {
+        console.log(identify, password);
+        const res = await SERVICE_LOGIN.login(identify, password);
+        if (res.data?.access_token) {
+          SERVICE_LOGIN.saveToken(res.data.access_token);
+          SERVICE_LOGIN.refreshToken(res.data.refresh_token);
+          const user = (await SERVICE_LOGIN.getinfoConnectUser()).data;
+          console.log(user);
+          const tel = user.data.phone;
+          const name = user.data.name;
+          const role = user.data.role;
+          const email = user.data.email;
+
+          localStorage.setItem("name", name);
+          localStorage.setItem("role", role.nom);
+          localStorage.setItem("email", email);
+          localStorage.setItem("tel", tel);
+
+          if (remember) {
+            localStorage.setItem("password", password);
+            localStorage.setItem("identify", email);
+            localStorage.setItem("remember", "true");
+          } else {
+            localStorage.removeItem("password");
+            localStorage.removeItem("identify");
+            localStorage.removeItem("remember");
+          }
+
+          const islog = SERVICE_LOGIN.isLoggedIn();
+          if (islog) {
+            router.push(`/trafic${TRAFIC.trafic_dashboard}`);
+          } else {
+            router.push(AUTH.Login);
+          }
+
+          setError(false);
+        } else {
+          setError(true);
+        }
+      }
+    } catch (error) {
+      setError(true);
+      toast.error(`Identifiant ou mot de passe incorrect.`, {
+        position: "top-center",
+        autoClose: 1000,
+        pauseOnFocusLoss: true,
+        closeButton: true,
+        pauseOnHover: false,
+        hideProgressBar: false,
+        closeOnClick: true,
+        draggable: true,
+      });
+    }
+    setLoading(false);
+  };
+
+  const rememberOnchange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRemember(event.target.checked);
+  };
+
+  useEffect(() => {
+    const isloged = SERVICE_LOGIN.isLoggedIn();
+    if (isloged) {
+      router.push(`/trafic${TRAFIC.trafic_dashboard}`);
+    }
+  }, [router]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <LayoutAuth>
+      <div className="w-full md:h-full lg:p-14">
+        <h1 className="mb-2 text-3xl font-bold">Se connecter</h1>
+
+        <form onSubmit={handleLogin}>
+          <InputIcon
+            id="name"
+            error={error}
+            required={true}
+            icon="hugeicons:mail-02"
+            placeholder="Identifiant"
+            className="mb-5"
+            value={identify}
+            setValue={setIdentify}
+          />
+          <InputPassword
+            error={error}
+            id="password"
+            required={true}
+            placeholder="Mot de passe"
+            className=""
+            value={password}
+            setValue={setPassword}
+          />
+          <div className="flex justify-between gap-10 mt-4">
+            <div className="flex items-center content-center gap-2">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={remember}
+                onChange={rememberOnchange}
+                className="w-5 h-5 mt-1 font-medium accent-yellow-400 before:checked:border-yellow-300"
+              />
+              <span className="text-sm whitespace-nowrap">Se Rappeler</span>
+            </div>
+            <Link href={AUTH.ForgetPassword}>
+              <span className="text-sm text-yellow-300 cursor-pointer">
+                Mot de passe oublie
+              </span>
+            </Link>
+          </div>
+          <BtnPrimary
+            text="Connexion"
+            loading={loading}
+            type="submit"
+            className="mt-5 font-bold border border-black"
+          />
+        </form>
+      </div>
+    </LayoutAuth>
   );
 }
