@@ -6,6 +6,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_GARAGES, GaragesProps } from "@/services/garage-service";
 import Pagination from "@/components/Pagination";
+import ErrorPopup from "@/components/ErrorPopup";
 import dynamic from "next/dynamic";
 
 // Import dynamique pour eviter les erreurs SSR avec Google Maps
@@ -26,6 +27,26 @@ export default function GaragesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
+
+  // Popup d'erreur
+  const [errorPopup, setErrorPopup] = useState({
+    isOpen: false,
+    message: "",
+    title: "",
+    type: "error" as "error" | "warning" | "info" | "success",
+  });
+
+  const showError = (message: string, title?: string) => {
+    setErrorPopup({ isOpen: true, message, title: title || "Erreur", type: "error" });
+  };
+
+  const showWarning = (message: string, title?: string) => {
+    setErrorPopup({ isOpen: true, message, title: title || "Attention", type: "warning" });
+  };
+
+  const closeErrorPopup = () => {
+    setErrorPopup({ ...errorPopup, isOpen: false });
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,7 +118,7 @@ export default function GaragesPage() {
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomGarage || !nomResponsable || !telephone || !adresse) {
-      toast.error("Veuillez remplir tous les champs");
+      showWarning("Veuillez remplir tous les champs obligatoires", "Champs manquants");
       return;
     }
 
@@ -114,14 +135,26 @@ export default function GaragesPage() {
         true,
         phone
       );
-      if (res.status === 201) {
+
+      // Vérifier le status dans la réponse (le backend retourne status dans le body)
+      if (res.status === 201 || res.status === 200) {
         toast.success("Garage ajoute avec succes");
         setModalCreate(false);
         resetForm();
         loadGarages();
+      } else if (res.status === 409) {
+        showError(res.message, "Garage deja existant");
+      } else if (res.status === 400) {
+        showWarning(res.message, "Donnees invalides");
+      } else if (res.status === 401 || res.status === 403) {
+        showError("Vous n'avez pas les permissions necessaires", "Acces refuse");
+      } else {
+        showError(res.message || "Une erreur est survenue", "Erreur");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de l'ajout");
+      // Erreur réseau ou autre
+      const errorMessage = error.response?.data?.message || error.message || "Erreur lors de l'ajout du garage";
+      showError(errorMessage, "Erreur");
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +163,7 @@ export default function GaragesPage() {
   const submitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomGarage || !nomResponsable || !telephone || !adresse) {
-      toast.error("Veuillez remplir tous les champs");
+      showWarning("Veuillez remplir tous les champs obligatoires", "Champs manquants");
       return;
     }
 
@@ -148,14 +181,27 @@ export default function GaragesPage() {
         true,
         phone
       );
-      if (res.status === 200) {
+
+      // Vérifier le status dans la réponse
+      if (res.status === 200 || res.status === 201) {
         toast.success("Garage modifie avec succes");
         setModalEdit(false);
         resetForm();
         loadGarages();
+      } else if (res.status === 409) {
+        showError(res.message, "Conflit de donnees");
+      } else if (res.status === 400) {
+        showWarning(res.message, "Donnees invalides");
+      } else if (res.status === 401 || res.status === 403) {
+        showError("Vous n'avez pas les permissions necessaires", "Acces refuse");
+      } else if (res.status === 404) {
+        showError("Ce garage n'existe plus", "Garage introuvable");
+      } else {
+        showError(res.message || "Une erreur est survenue", "Erreur");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      const errorMessage = error.response?.data?.message || error.message || "Erreur lors de la modification";
+      showError(errorMessage, "Erreur");
     } finally {
       setSubmitting(false);
     }
@@ -317,6 +363,15 @@ export default function GaragesPage() {
       <ToastContainer position="bottom-right" />
       {modalCreate && renderModal(false)}
       {modalEdit && renderModal(true)}
+
+      {/* Popup d'erreur */}
+      <ErrorPopup
+        isOpen={errorPopup.isOpen}
+        onClose={closeErrorPopup}
+        title={errorPopup.title}
+        message={errorPopup.message}
+        type={errorPopup.type}
+      />
 
       <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
         <div className="p-4 flex items-center justify-between">

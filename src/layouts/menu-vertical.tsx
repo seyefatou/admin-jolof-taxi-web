@@ -136,6 +136,20 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
       isActive: isPathActive(`/tracking${TRAFIC.live_tracking}`),
     },
     {
+      path: `/parametres${PARAMETRES.CLIENTS}`,
+      text: "Clients",
+      subText: "Gestion des clients",
+      icon: "mdi:account-group",
+      isActive: isPathActive(`/parametres/clients`),
+    },
+    {
+      path: `/parametres${PARAMETRES.CHAUFFEURS}`,
+      text: "Chauffeurs",
+      subText: "Gestion des chauffeurs",
+      icon: "mdi:account-tie-hat",
+      isActive: isPathActive(`/parametres/chauffeurs`),
+    },
+    {
       path: `/parametres/garages`,
       text: "Garages",
       subText: "Gestion des garages",

@@ -1,33 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useRouter } from "next/navigation";
 import Pagination from "@/components/Pagination";
 import FilterDropdown from "@/components/FilterDropdown";
-
-// Types pour les courses (a adapter selon le backend)
-type Course = {
-  id: number;
-  client: { name: string; phone: string };
-  driver: { name: string; phone: string } | null;
-  pickupLocation: { address: string };
-  dropOffLocation: { address: string };
-  status: string;
-  paymentMethod: { name: string } | null;
-  price: number;
-  created_at: string;
-};
-
-// Donnees de demonstration (a remplacer par l'API)
-const mockCourses: Course[] = [];
+import ConfirmModal from "@/components/ConfirmModal";
+import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
+import { SERVICE_CHAUFFEUR, ChauffeurProps } from "@/services/chauffeur-service";
 
 export default function CoursesPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseProps[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<CourseProps[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [availableDrivers, setAvailableDrivers] = useState<ChauffeurProps[]>([]);
 
   // Filtres
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -38,6 +28,18 @@ export default function CoursesPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Action menu
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Modals
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseProps | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [selectedDriver, setSelectedDriver] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Options de filtres
   const statusOptions = [
@@ -71,43 +73,55 @@ export default function CoursesPage() {
     { value: "UNASSIGNED", label: "Non assignes", icon: "mdi:account-question" },
   ];
 
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const loadCourses = async () => {
     try {
       setLoading(true);
-      // TODO: Remplacer par l'appel API reel
-      // const res = await SERVICE_COURSES.getAll();
-      // setCourses(res.data);
-      setCourses(mockCourses);
+      const response = await SERVICE_COURSE.getAll({
+        status: statusFilter,
+        search: searchTerm,
+      });
+      // S'assurer que courses est toujours un tableau
+      const data = response.data;
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error("Erreur lors de la recuperation des courses");
+      setCourses([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadDrivers = async () => {
+    try {
+      const response = await SERVICE_CHAUFFEUR.getAll();
+      const activeDrivers = (response.data || []).filter(
+        (d) => d.status === "ACTIVE" && d.isOnline
+      );
+      setAvailableDrivers(activeDrivers);
+    } catch (error) {
+      console.error("Erreur chargement chauffeurs:", error);
+    }
+  };
+
   useEffect(() => {
     loadCourses();
-  }, []);
+    loadDrivers();
+  }, [statusFilter, searchTerm]);
 
-  // Filtrage des courses
+  // Filtrage des courses (filtres locaux)
   useEffect(() => {
-    let filtered = [...courses];
-
-    // Filtre de recherche
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (course) =>
-          course.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          course.driver?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          course.pickupLocation.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          course.dropOffLocation.address.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtre par statut
-    if (statusFilter !== "ALL") {
-      filtered = filtered.filter((course) => course.status === statusFilter);
-    }
+    let filtered = Array.isArray(courses) ? [...courses] : [];
 
     // Filtre par date
     if (dateFilter !== "ALL") {
@@ -135,7 +149,7 @@ export default function CoursesPage() {
     // Filtre par paiement
     if (paymentFilter !== "ALL") {
       filtered = filtered.filter(
-        (course) => course.paymentMethod?.name === paymentFilter
+        (course) => course.payment_method?.name === paymentFilter
       );
     }
 
@@ -148,7 +162,7 @@ export default function CoursesPage() {
 
     setFilteredCourses(filtered);
     setCurrentPage(1);
-  }, [courses, searchTerm, statusFilter, dateFilter, paymentFilter, driverFilter]);
+  }, [courses, dateFilter, paymentFilter, driverFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
@@ -157,10 +171,7 @@ export default function CoursesPage() {
     currentPage * itemsPerPage
   );
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
+  const handlePageChange = (page: number) => setCurrentPage(page);
   const handleItemsPerPageChange = (items: number) => {
     setItemsPerPage(items);
     setCurrentPage(1);
@@ -177,6 +188,73 @@ export default function CoursesPage() {
     setPaymentFilter("ALL");
     setDriverFilter("ALL");
     setSearchTerm("");
+  };
+
+  const handleViewDetails = (course: CourseProps) => {
+    router.push(`/reservations/reservations/${course.code_booking}`);
+    setOpenMenuId(null);
+  };
+
+  const handleCancelCourse = (course: CourseProps) => {
+    setSelectedCourse(course);
+    setShowCancelModal(true);
+    setOpenMenuId(null);
+  };
+
+  const handleAssignDriver = (course: CourseProps) => {
+    setSelectedCourse(course);
+    setShowAssignModal(true);
+    setOpenMenuId(null);
+  };
+
+  const executeCancelCourse = async () => {
+    if (!selectedCourse || !cancelReason.trim()) {
+      toast.error("Veuillez indiquer une raison d'annulation");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await SERVICE_COURSE.cancel(selectedCourse.code_booking, cancelReason);
+      if (res.status === 200 || res.status === 201) {
+        toast.success("Course annulee avec succes");
+        setShowCancelModal(false);
+        setSelectedCourse(null);
+        setCancelReason("");
+        loadCourses();
+      } else {
+        toast.error(res.message || "Erreur lors de l'annulation");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de l'annulation");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const executeAssignDriver = async () => {
+    if (!selectedCourse || !selectedDriver) {
+      toast.error("Veuillez selectionner un chauffeur");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await SERVICE_COURSE.assignDriver(selectedCourse.code_booking, selectedDriver);
+      if (res.status === 200 || res.status === 201) {
+        toast.success("Chauffeur assigne avec succes");
+        setShowAssignModal(false);
+        setSelectedCourse(null);
+        setSelectedDriver("");
+        loadCourses();
+      } else {
+        toast.error(res.message || "Erreur lors de l'assignation");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de l'assignation");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -197,13 +275,15 @@ export default function CoursesPage() {
 
   const hasActiveFilters = statusFilter !== "ALL" || dateFilter !== "ALL" || paymentFilter !== "ALL" || driverFilter !== "ALL";
 
-  // Compteurs pour les stats
+  // Compteurs pour les stats (protection si courses n'est pas un tableau)
+  const coursesArray = Array.isArray(courses) ? courses : [];
   const stats = {
-    total: courses.length,
-    done: courses.filter((c) => c.status === "DONE").length,
-    pending: courses.filter((c) => c.status === "PENDING").length,
-    inProgress: courses.filter((c) => c.status === "IN_PROGRESS").length,
-    canceled: courses.filter((c) => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER").length,
+    total: coursesArray.length,
+    done: coursesArray.filter((c) => c.status === "DONE").length,
+    pending: coursesArray.filter((c) => c.status === "PENDING").length,
+    inProgress: coursesArray.filter((c) => c.status === "IN_PROGRESS").length,
+    canceled: coursesArray.filter((c) => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER").length,
+    revenue: coursesArray.filter((c) => c.status === "DONE").reduce((sum, c) => sum + c.price, 0),
   };
 
   if (loading) {
@@ -237,7 +317,7 @@ export default function CoursesPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gray-100 rounded-lg">
@@ -290,6 +370,17 @@ export default function CoursesPage() {
             <div>
               <p className="text-2xl font-bold text-red-600">{stats.canceled}</p>
               <p className="text-xs text-gray-500">Annulees</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Icon icon="mdi:cash" className="text-xl text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-purple-600">{stats.revenue.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">Revenus (CFA)</p>
             </div>
           </div>
         </div>
@@ -356,7 +447,7 @@ export default function CoursesPage() {
               placeholder="Rechercher par client, chauffeur, adresse..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-300"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400 outline-none"
             />
             {searchTerm && (
               <button
@@ -378,9 +469,7 @@ export default function CoursesPage() {
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Client</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Chauffeur</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Depart</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Arrivee</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Paiement</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Trajet</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Prix</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
@@ -390,16 +479,16 @@ export default function CoursesPage() {
           <tbody>
             {paginatedCourses.length > 0 ? (
               paginatedCourses.map((course) => (
-                <tr key={course.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">#{course.id}</td>
+                <tr key={course.code_booking} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-xs">{course.code_booking}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-yellow-200 flex items-center justify-center text-yellow-600 font-medium">
-                        {course.client.name.charAt(0)}
+                        {course.customer.name.charAt(0)}
                       </div>
                       <div>
-                        <div className="font-medium text-sm">{course.client.name}</div>
-                        <div className="text-xs text-gray-500">{course.client.phone}</div>
+                        <div className="font-medium text-sm">{course.customer.name}</div>
+                        <div className="text-xs text-gray-500">{course.customer.phone}</div>
                       </div>
                     </div>
                   </td>
@@ -419,45 +508,86 @@ export default function CoursesPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Icon icon="mdi:map-marker" className="text-green-500" />
-                      <span className="truncate max-w-[150px]">{course.pickupLocation.address}</span>
+                    <div className="text-sm">
+                      <div className="flex items-center gap-1">
+                        <Icon icon="mdi:map-marker" className="text-green-500 text-xs" />
+                        <span className="truncate max-w-[120px]">{course.pickup_location.address}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Icon icon="mdi:map-marker" className="text-red-500 text-xs" />
+                        <span className="truncate max-w-[120px]">{course.dropoff_location.address}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Icon icon="mdi:map-marker" className="text-red-500" />
-                      <span className="truncate max-w-[150px]">{course.dropOffLocation.address}</span>
+                    <div>
+                      <span className="font-semibold text-sm">{course.price.toLocaleString()} CFA</span>
+                      <div className="text-xs text-gray-400">{course.payment_method?.name || "N/A"}</div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm">{course.paymentMethod?.name || "N/A"}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-semibold text-sm">{course.price.toLocaleString()} CFA</span>
                   </td>
                   <td className="px-4 py-3">{getStatusBadge(course.status)}</td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-gray-500">
-                      {new Date(course.created_at).toLocaleDateString("fr-FR")}
-                    </span>
+                    <div className="text-sm">
+                      <div className="text-gray-700">{new Date(course.created_at).toLocaleDateString("fr-FR")}</div>
+                      <div className="text-xs text-gray-400">{new Date(course.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
-                    <button className="p-2 bg-yellow-100 text-yellow-600 rounded-full hover:bg-yellow-200">
-                      <Icon icon="mdi:eye" />
-                    </button>
+                    <div className="relative" ref={openMenuId === course.code_booking ? menuRef : null}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === course.code_booking ? null : course.code_booking)}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <Icon icon="mdi:dots-vertical" className="text-gray-600" />
+                      </button>
+
+                      {openMenuId === course.code_booking && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                          <button
+                            onClick={() => handleViewDetails(course)}
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Icon icon="mdi:eye" className="text-yellow-600" />
+                            Voir details
+                          </button>
+
+                          {!course.driver && course.status === "PENDING" && (
+                            <button
+                              onClick={() => handleAssignDriver(course)}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Icon icon="mdi:account-plus" className="text-blue-600" />
+                              Assigner chauffeur
+                            </button>
+                          )}
+
+                          {(course.status === "PENDING" || course.status === "IN_PROGRESS") && (
+                            <>
+                              <div className="border-t border-gray-100 my-1"></div>
+                              <button
+                                onClick={() => handleCancelCourse(course)}
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              >
+                                <Icon icon="mdi:close-circle" />
+                                Annuler la course
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr className="border-t border-gray-100">
-                <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                   <Icon icon="mdi:car-off" className="text-6xl mx-auto mb-4 text-gray-300" />
                   <p className="text-lg font-medium">Aucune course trouvee</p>
                   <p className="text-sm text-gray-400 mt-1">
                     {hasActiveFilters
                       ? "Essayez de modifier vos filtres"
-                      : "Les courses apparaitront ici une fois l'integration terminee"}
+                      : "Les courses apparaitront ici"}
                   </p>
                   {hasActiveFilters && (
                     <button
@@ -484,6 +614,134 @@ export default function CoursesPage() {
           />
         )}
       </div>
+
+      {/* Cancel Modal */}
+      {showCancelModal && selectedCourse && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCancelModal(false)} />
+
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-red-500 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Annuler la course</h2>
+                <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
+                  <Icon icon="mdi:close" className="text-xl text-white" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-600 mb-4">
+                Vous etes sur le point d'annuler la course <strong>{selectedCourse.code_booking}</strong>.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Raison de l'annulation <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Indiquez la raison de l'annulation..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-200 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={executeCancelCourse}
+                  disabled={actionLoading || !cancelReason.trim()}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <Icon icon="mdi:close-circle" />
+                      Annuler la course
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Driver Modal */}
+      {showAssignModal && selectedCourse && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAssignModal(false)} />
+
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-yellow-300 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-black">Assigner un chauffeur</h2>
+                <button onClick={() => setShowAssignModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
+                  <Icon icon="mdi:close" className="text-xl text-black" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-600 mb-4">
+                Selectionner un chauffeur pour la course <strong>{selectedCourse.code_booking}</strong>.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chauffeur disponible <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedDriver}
+                  onChange={(e) => setSelectedDriver(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                >
+                  <option value="">Selectionner un chauffeur</option>
+                  {availableDrivers.map((driver) => (
+                    <option key={driver.matricule} value={driver.matricule}>
+                      {driver.name} - {driver.phone}
+                    </option>
+                  ))}
+                </select>
+                {availableDrivers.length === 0 && (
+                  <p className="text-sm text-orange-500 mt-1">Aucun chauffeur disponible en ligne</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAssignModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={executeAssignDriver}
+                  disabled={actionLoading || !selectedDriver}
+                  className="flex-1 px-4 py-2.5 bg-yellow-300 text-black rounded-xl hover:bg-yellow-400 font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent" />
+                  ) : (
+                    <>
+                      <Icon icon="mdi:account-check" />
+                      Assigner
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

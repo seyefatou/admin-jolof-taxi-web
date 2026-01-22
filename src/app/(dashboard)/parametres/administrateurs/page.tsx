@@ -7,6 +7,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_ADMINISTRATEUR, AdminProps } from "@/services/administrateur-service";
 import Pagination from "@/components/Pagination";
 import FilterDropdown from "@/components/FilterDropdown";
+import ErrorPopup from "@/components/ErrorPopup";
+import { useErrorPopup } from "@/hooks/useErrorPopup";
 
 export default function AdministrateursPage() {
   const [loading, setLoading] = useState(true);
@@ -18,6 +20,9 @@ export default function AdministrateursPage() {
   const [modalEdit, setModalEdit] = useState(false);
   const [modalStatus, setModalStatus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Hook pour les popups d'erreur
+  const { errorPopup, showError, showWarning, closePopup, handleApiError } = useErrorPopup();
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,7 +141,7 @@ export default function AdministrateursPage() {
   const submitAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nom || !email || !telephone || !adresse) {
-      toast.error("Veuillez remplir tous les champs");
+      showWarning("Veuillez remplir tous les champs obligatoires", "Champs manquants");
       return;
     }
 
@@ -151,7 +156,7 @@ export default function AdministrateursPage() {
         loadAdmins();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la creation");
+      handleApiError(error, "Erreur lors de la creation de l'administrateur");
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +165,7 @@ export default function AdministrateursPage() {
   const submitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nom || !email || !telephone || !adresse) {
-      toast.error("Veuillez remplir tous les champs");
+      showWarning("Veuillez remplir tous les champs obligatoires", "Champs manquants");
       return;
     }
 
@@ -175,7 +180,7 @@ export default function AdministrateursPage() {
         loadAdmins();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      handleApiError(error, "Erreur lors de la modification de l'administrateur");
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +190,7 @@ export default function AdministrateursPage() {
     e.preventDefault();
     const confirmWord = statusAction === "ACTIVE" ? "ACTIVER" : statusAction === "BANNED" ? "BANNIR" : "DESACTIVER";
     if (confirmText !== confirmWord) {
-      toast.error(`Veuillez taper "${confirmWord}" pour confirmer`);
+      showWarning(`Veuillez taper "${confirmWord}" pour confirmer`, "Confirmation requise");
       return;
     }
 
@@ -199,7 +204,7 @@ export default function AdministrateursPage() {
         loadAdmins();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      handleApiError(error, "Erreur lors du changement de statut");
     } finally {
       setSubmitting(false);
     }
@@ -360,6 +365,15 @@ export default function AdministrateursPage() {
       {modalAdd && renderFormModal(false)}
       {modalEdit && renderFormModal(true)}
       {modalStatus && renderStatusModal()}
+
+      {/* Popup d'erreur */}
+      <ErrorPopup
+        isOpen={errorPopup.isOpen}
+        onClose={closePopup}
+        title={errorPopup.title}
+        message={errorPopup.message}
+        type={errorPopup.type}
+      />
 
       {/* Header */}
       <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">

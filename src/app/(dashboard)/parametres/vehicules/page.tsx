@@ -15,12 +15,18 @@ const getServiceCategory = (year: number) => {
   return { category: "Eco", color: "text-green-600", bg: "bg-green-100" };
 };
 
+type SortConfig = {
+  key: string;
+  direction: "ascending" | "descending";
+};
+
 export default function VehiculesPage() {
   const [loading, setLoading] = useState(true);
   const [cars, setCars] = useState<VehiculeResp[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [expandedCarId, setExpandedCarId] = useState<number | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "id", direction: "ascending" });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,22 +55,62 @@ export default function VehiculesPage() {
     setCurrentPage(1);
   }, [searchTerm, filterCategory]);
 
-  const filteredCars = cars.filter((car) => {
-    const matchSearch =
-      car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      car.licensePlateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      car.owner.name.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fonction de tri
+  const handleSort = (key: string) => {
+    let direction: "ascending" | "descending" = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
 
-    if (filterCategory === "all") return matchSearch;
+  // Indicateur de direction du tri
+  const getSortIcon = (key: string) => {
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === "ascending" ? (
+      <Icon icon="mdi:chevron-up" className="text-lg" />
+    ) : (
+      <Icon icon="mdi:chevron-down" className="text-lg" />
+    );
+  };
 
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - car.year;
-    if (filterCategory === "comfort-plus") return matchSearch && age < 2;
-    if (filterCategory === "comfort") return matchSearch && age >= 2 && age < 10;
-    if (filterCategory === "eco") return matchSearch && age >= 10;
-    return matchSearch;
-  });
+  const filteredCars = cars
+    .filter((car) => {
+      const matchSearch =
+        car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.licensePlateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.owner.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (filterCategory === "all") return matchSearch;
+
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - car.year;
+      if (filterCategory === "comfort-plus") return matchSearch && age < 2;
+      if (filterCategory === "comfort") return matchSearch && age >= 2 && age < 10;
+      if (filterCategory === "eco") return matchSearch && age >= 10;
+      return matchSearch;
+    })
+    .sort((a, b) => {
+      let valueA: string | number;
+      let valueB: string | number;
+
+      if (sortConfig.key === "owner.name") {
+        valueA = a.owner.name;
+        valueB = b.owner.name;
+      } else {
+        valueA = (a as Record<string, unknown>)[sortConfig.key] as string | number;
+        valueB = (b as Record<string, unknown>)[sortConfig.key] as string | number;
+      }
+
+      if (valueA < valueB) {
+        return sortConfig.direction === "ascending" ? -1 : 1;
+      }
+      if (valueA > valueB) {
+        return sortConfig.direction === "ascending" ? 1 : -1;
+      }
+      return 0;
+    });
 
   // Pagination logic
   const totalPages = Math.ceil(filteredCars.length / itemsPerPage);
@@ -262,12 +308,40 @@ export default function VehiculesPage() {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Marque/Modele</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Annee</th>
+              <th
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort("id")}
+              >
+                <div className="flex items-center gap-1">
+                  ID {getSortIcon("id")}
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort("brand")}
+              >
+                <div className="flex items-center gap-1">
+                  Marque/Modele {getSortIcon("brand")}
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort("year")}
+              >
+                <div className="flex items-center gap-1">
+                  Annee {getSortIcon("year")}
+                </div>
+              </th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Categorie</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Immatriculation</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Proprietaire</th>
+              <th
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort("owner.name")}
+              >
+                <div className="flex items-center gap-1">
+                  Proprietaire {getSortIcon("owner.name")}
+                </div>
+              </th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Disponibilite</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>

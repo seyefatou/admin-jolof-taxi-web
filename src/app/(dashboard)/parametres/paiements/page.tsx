@@ -5,6 +5,8 @@ import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_PAIEMENT, PaiementProps } from "@/services/paiement-service";
+import ErrorPopup from "@/components/ErrorPopup";
+import { useErrorPopup } from "@/hooks/useErrorPopup";
 
 export default function PaiementsPage() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +18,9 @@ export default function PaiementsPage() {
   const [nomPaiement, setNomPaiement] = useState("");
   const [editId, setEditId] = useState<number>(0);
   const [editStatus, setEditStatus] = useState(true);
+
+  // Hook pour les popups d'erreur
+  const { errorPopup, showWarning, closePopup, handleApiError } = useErrorPopup();
 
   const loadPaiements = async () => {
     try {
@@ -54,7 +59,7 @@ export default function PaiementsPage() {
   const submitAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomPaiement) {
-      toast.error("Veuillez remplir le nom du mode de paiement");
+      showWarning("Veuillez remplir le nom du mode de paiement", "Champ requis");
       return;
     }
 
@@ -68,7 +73,7 @@ export default function PaiementsPage() {
         loadPaiements();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de l'ajout");
+      handleApiError(error, "Erreur lors de l'ajout du mode de paiement");
     } finally {
       setSubmitting(false);
     }
@@ -77,7 +82,7 @@ export default function PaiementsPage() {
   const submitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomPaiement) {
-      toast.error("Veuillez remplir le nom du mode de paiement");
+      showWarning("Veuillez remplir le nom du mode de paiement", "Champ requis");
       return;
     }
 
@@ -91,7 +96,7 @@ export default function PaiementsPage() {
         loadPaiements();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      handleApiError(error, "Erreur lors de la modification du mode de paiement");
     } finally {
       setSubmitting(false);
     }
@@ -173,6 +178,15 @@ export default function PaiementsPage() {
       <ToastContainer position="bottom-right" />
       {modalAdd && renderModal(false)}
       {modalEdit && renderModal(true)}
+
+      {/* Popup d'erreur */}
+      <ErrorPopup
+        isOpen={errorPopup.isOpen}
+        onClose={closePopup}
+        title={errorPopup.title}
+        message={errorPopup.message}
+        type={errorPopup.type}
+      />
 
       <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
         <div className="p-4 flex items-center justify-between">
