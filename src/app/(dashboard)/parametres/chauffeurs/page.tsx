@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,6 +13,20 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { SERVICE_CHAUFFEUR, ChauffeurProps, UpdateChauffeurData } from "@/services/chauffeur-service";
 import { SERVICE_GARAGES, GaragesProps } from "@/services/garage-service";
 import { SERVICE_VEHICULES, VehiculeTypeResp } from "@/services/vehicule-service";
+import {
+  AnimatedTableRow,
+  StatusBadge,
+  OnlineBadge,
+  AvatarWithStatus,
+  StatCard,
+  TableContainer,
+  TableHeader,
+  TableHeaderCell,
+  TableCell,
+  EmptyState,
+  PageHeader,
+  AddButton,
+} from "@/components/ui/AnimatedTable";
 
 export default function ChauffeursList() {
   const router = useRouter();
@@ -40,6 +55,7 @@ export default function ChauffeursList() {
 
   // Action menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const statusOptions = [
@@ -61,11 +77,37 @@ export default function ChauffeursList() {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpenMenuId(null);
+        setMenuPosition(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Handle menu toggle with position calculation
+  const handleMenuToggle = (matricule: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (openMenuId === matricule) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    } else {
+      const button = event.currentTarget;
+      const rect = button.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const menuHeight = 320;
+
+      const spaceBelow = windowHeight - rect.bottom;
+      const top = spaceBelow < menuHeight
+        ? rect.top - menuHeight + window.scrollY
+        : rect.bottom + window.scrollY;
+
+      setMenuPosition({
+        top,
+        left: rect.right - 192 + window.scrollX,
+      });
+      setOpenMenuId(matricule);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -118,21 +160,6 @@ export default function ChauffeursList() {
   const handleItemsPerPageChange = (items: number) => {
     setItemsPerPage(items);
     setCurrentPage(1);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const config: Record<string, { bg: string; text: string; label: string }> = {
-      ACTIVE: { bg: "bg-green-100", text: "text-green-700", label: "Actif" },
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
-      DEACTIVATED: { bg: "bg-gray-100", text: "text-gray-700", label: "Desactive" },
-      BANNED: { bg: "bg-red-100", text: "text-red-700", label: "Banni" },
-    };
-    const c = config[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
-        {c.label}
-      </span>
-    );
   };
 
   // CRUD Actions
@@ -307,7 +334,12 @@ export default function ChauffeursList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-200 border-t-yellow-400"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Icon icon="mdi:car" className="text-yellow-500 text-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -317,73 +349,23 @@ export default function ChauffeursList() {
       <ToastContainer position="bottom-right" />
 
       {/* Header */}
-      <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
-        <div className="p-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">
-            <Icon icon="mdi:account-tie" className="inline mr-2" />
-            Gestion des Chauffeurs
-            <span className="text-yellow-500 ml-2">({filteredChauffeurs.length})</span>
-          </h1>
-          <button
-            onClick={handleAddChauffeur}
-            className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors flex items-center gap-2"
-          >
-            <Icon icon="mdi:plus" />
-            Ajouter
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Gestion des Chauffeurs"
+        icon="mdi:account-tie"
+        count={filteredChauffeurs.length}
+        action={<AddButton onClick={handleAddChauffeur} label="Ajouter" />}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <Icon icon="mdi:account-group" className="text-xl text-gray-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-              <p className="text-xs text-gray-500">Total</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Icon icon="mdi:check-circle" className="text-xl text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-              <p className="text-xs text-gray-500">Actifs</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Icon icon="mdi:circle" className="text-xl text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-blue-600">{stats.online}</p>
-              <p className="text-xs text-gray-500">En ligne</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Icon icon="mdi:clock-outline" className="text-xl text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              <p className="text-xs text-gray-500">En attente</p>
-            </div>
-          </div>
-        </div>
+        <StatCard title="Total" value={stats.total} icon="mdi:account-group" color="gray" index={0} />
+        <StatCard title="Actifs" value={stats.active} icon="mdi:check-circle" color="green" index={1} />
+        <StatCard title="En ligne" value={stats.online} icon="mdi:wifi" color="blue" index={2} />
+        <StatCard title="En attente" value={stats.pending} icon="mdi:clock-outline" color="yellow" index={3} />
       </div>
 
       {/* Filtres */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md p-4 mb-6">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <FilterDropdown
             label="Statut"
@@ -410,25 +392,25 @@ export default function ChauffeursList() {
           />
 
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 mb-2">
+            <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
               <Icon icon="mdi:magnify" className="inline mr-1" />
               Recherche
             </label>
-            <div className="relative">
-              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="relative group">
+              <Icon icon="mdi:magnify" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-yellow-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Rechercher par nom, email ou telephone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                className="w-full pl-11 pr-10 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all duration-200"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <Icon icon="mdi:close-circle" />
+                  <Icon icon="mdi:close-circle" className="text-xl" />
                 </button>
               )}
             </div>
@@ -437,184 +419,97 @@ export default function ChauffeursList() {
       </div>
 
       {/* Tableau */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+      <TableContainer>
         <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Chauffeur</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Contact</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Vehicule</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Garage</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">En ligne</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
-            </tr>
-          </thead>
+          <TableHeader>
+            <TableHeaderCell>ID</TableHeaderCell>
+            <TableHeaderCell>Chauffeur</TableHeaderCell>
+            <TableHeaderCell>Contact</TableHeaderCell>
+            <TableHeaderCell>Vehicule</TableHeaderCell>
+            <TableHeaderCell>Garage</TableHeaderCell>
+            <TableHeaderCell>Statut</TableHeaderCell>
+            <TableHeaderCell>Disponibilite</TableHeaderCell>
+            <TableHeaderCell>Actions</TableHeaderCell>
+          </TableHeader>
           <tbody>
             {paginatedChauffeurs.length > 0 ? (
               paginatedChauffeurs.map((chauffeur, index) => (
-                <tr key={chauffeur.matricule} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-xs">{chauffeur.matricule}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        {chauffeur.avatar ? (
-                          <img
-                            src={chauffeur.avatar}
-                            alt={chauffeur.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <img
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(chauffeur.name || "U")}&background=random`}
-                            alt={chauffeur.name || "User"}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        )}
-                        {chauffeur.isOnline && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
+                <AnimatedTableRow key={chauffeur.matricule} index={index}>
+                  <TableCell>
+                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded-md">
+                      {chauffeur.matricule}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <AvatarWithStatus
+                      name={chauffeur.name}
+                      avatar={chauffeur.avatar}
+                      isOnline={chauffeur.isOnline}
+                      rating={chauffeur.rating}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Icon icon="mdi:email-outline" className="text-gray-400" />
+                        {chauffeur.email || "-"}
                       </div>
-                      <div>
-                        <span className="font-medium">
-                          {chauffeur.name ? chauffeur.name : <span className="text-gray-400 italic">Indisponible</span>}
-                        </span>
-                        {chauffeur.rating > 0 && (
-                          <div className="flex items-center text-xs text-yellow-500">
-                            <Icon icon="mdi:star" className="mr-0.5" />
-                            {chauffeur.rating.toFixed(1)}
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Icon icon="mdi:phone-outline" className="text-gray-400" />
+                        {chauffeur.phone}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm">
-                      <div className="text-gray-600">{chauffeur.email || "-"}</div>
-                      <div className="text-gray-400">{chauffeur.phone}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     {chauffeur.vehicule ? (
-                      <span className="text-sm">{chauffeur.vehicule.brand} {chauffeur.vehicule.model} - {chauffeur.vehicule.licensePlateNumber}</span>
-                    ) : (
-                      <span className="text-gray-400 text-sm italic">Non assigne</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {chauffeur.garageAffiliation ? (
-                      <span className="text-sm">{chauffeur.garageAffiliation.name}</span>
-                    ) : (
-                      <span className="text-gray-400 text-sm italic">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{getStatusBadge(chauffeur.status)}</td>
-                  <td className="px-4 py-3">
-                    {chauffeur.isOnline ? (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 shadow-sm">
-                        <Icon icon="mdi:wifi" className="text-sm" />
-                        En ligne
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 shadow-sm">
-                        <Icon icon="mdi:wifi-off" className="text-sm" />
-                        Hors ligne
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative" ref={openMenuId === chauffeur.matricule ? menuRef : null}>
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === chauffeur.matricule ? null : chauffeur.matricule)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      >
-                        <Icon icon="mdi:dots-vertical" className="text-gray-600" />
-                      </button>
-
-                      {openMenuId === chauffeur.matricule && (
-                        <div className={`absolute right-0 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50 max-h-80 overflow-y-auto ${
-                          index >= paginatedChauffeurs.length - 3 ? "bottom-full mb-1" : "top-full mt-1"
-                        }`}>
-                          <button
-                            onClick={() => handleViewDetails(chauffeur)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:eye" className="text-yellow-600" />
-                            Voir details
-                          </button>
-                          <button
-                            onClick={() => handleEditChauffeur(chauffeur)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:pencil" className="text-blue-600" />
-                            Modifier
-                          </button>
-
-                          <div className="border-t border-gray-100 my-1"></div>
-
-                          {chauffeur.status !== "ACTIVE" && (
-                            <button
-                              onClick={() => handleStatusAction("activate", chauffeur)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:check-circle" className="text-green-600" />
-                              Activer
-                            </button>
-                          )}
-                          {chauffeur.status !== "PENDING" && (
-                            <button
-                              onClick={() => handleStatusAction("pending", chauffeur)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:clock-outline" className="text-yellow-600" />
-                              Mettre en attente
-                            </button>
-                          )}
-                          {chauffeur.status !== "DEACTIVATED" && (
-                            <button
-                              onClick={() => handleStatusAction("deactivate", chauffeur)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:account-off" className="text-gray-600" />
-                              Desactiver
-                            </button>
-                          )}
-                          {chauffeur.status !== "BANNED" && (
-                            <button
-                              onClick={() => handleStatusAction("ban", chauffeur)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:account-cancel" className="text-orange-600" />
-                              Bannir
-                            </button>
-                          )}
-
-                          <div className="border-t border-gray-100 my-1"></div>
-
-                          <button
-                            onClick={() => handleDeleteAction(chauffeur)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:delete" />
-                            Supprimer
-                          </button>
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Icon icon="mdi:car" className="text-purple-600" />
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                        <div>
+                          <p className="text-sm font-medium">{chauffeur.vehicule.brand} {chauffeur.vehicule.model}</p>
+                          <p className="text-xs text-gray-500">{chauffeur.vehicule.licensePlateNumber}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm italic flex items-center gap-2">
+                        <Icon icon="mdi:car-off" className="text-gray-300" />
+                        Non assigne
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {chauffeur.garageAffiliation ? (
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mdi:garage" className="text-yellow-600" />
+                        <span className="text-sm">{chauffeur.garageAffiliation.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={chauffeur.status} />
+                  </TableCell>
+                  <TableCell>
+                    <OnlineBadge isOnline={chauffeur.isOnline} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={(e) => handleMenuToggle(chauffeur.matricule, e)}
+                      className="p-2.5 hover:bg-yellow-100 rounded-xl transition-all duration-200 hover:scale-110"
+                    >
+                      <Icon icon="mdi:dots-vertical" className="text-gray-600 text-xl" />
+                    </button>
+                  </TableCell>
+                </AnimatedTableRow>
               ))
             ) : (
-              <tr className="border-t border-gray-100">
-                <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                  <Icon icon="mdi:account-off" className="text-6xl mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium">Aucun chauffeur trouve</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Les chauffeurs apparaitront ici une fois ajoutes
-                  </p>
-                </td>
-              </tr>
+              <EmptyState
+                icon="mdi:account-off"
+                title="Aucun chauffeur trouve"
+                description="Les chauffeurs apparaitront ici une fois ajoutes"
+              />
             )}
           </tbody>
         </table>
@@ -629,7 +524,106 @@ export default function ChauffeursList() {
             onItemsPerPageChange={handleItemsPerPageChange}
           />
         )}
-      </div>
+      </TableContainer>
+
+      {/* Action Menu Portal */}
+      {openMenuId && menuPosition && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed w-52 bg-white border border-gray-200 rounded-2xl shadow-2xl py-2 z-[9999] overflow-hidden"
+          style={{
+            top: menuPosition.top,
+            left: menuPosition.left,
+          }}
+        >
+          {(() => {
+            const chauffeur = paginatedChauffeurs.find(c => c.matricule === openMenuId);
+            if (!chauffeur) return null;
+            return (
+              <>
+                <button
+                  onClick={() => handleViewDetails(chauffeur)}
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-yellow-50 flex items-center gap-3 transition-colors"
+                >
+                  <div className="p-1.5 bg-yellow-100 rounded-lg">
+                    <Icon icon="mdi:eye" className="text-yellow-600" />
+                  </div>
+                  <span className="font-medium">Voir details</span>
+                </button>
+                <button
+                  onClick={() => handleEditChauffeur(chauffeur)}
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                >
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <Icon icon="mdi:pencil" className="text-blue-600" />
+                  </div>
+                  <span className="font-medium">Modifier</span>
+                </button>
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {chauffeur.status !== "ACTIVE" && (
+                  <button
+                    onClick={() => handleStatusAction("activate", chauffeur)}
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-green-50 flex items-center gap-3 transition-colors"
+                  >
+                    <div className="p-1.5 bg-green-100 rounded-lg">
+                      <Icon icon="mdi:check-circle" className="text-green-600" />
+                    </div>
+                    <span className="font-medium">Activer</span>
+                  </button>
+                )}
+                {chauffeur.status !== "PENDING" && (
+                  <button
+                    onClick={() => handleStatusAction("pending", chauffeur)}
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-yellow-50 flex items-center gap-3 transition-colors"
+                  >
+                    <div className="p-1.5 bg-yellow-100 rounded-lg">
+                      <Icon icon="mdi:clock-outline" className="text-yellow-600" />
+                    </div>
+                    <span className="font-medium">Mettre en attente</span>
+                  </button>
+                )}
+                {chauffeur.status !== "DEACTIVATED" && (
+                  <button
+                    onClick={() => handleStatusAction("deactivate", chauffeur)}
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  >
+                    <div className="p-1.5 bg-gray-100 rounded-lg">
+                      <Icon icon="mdi:account-off" className="text-gray-600" />
+                    </div>
+                    <span className="font-medium">Desactiver</span>
+                  </button>
+                )}
+                {chauffeur.status !== "BANNED" && (
+                  <button
+                    onClick={() => handleStatusAction("ban", chauffeur)}
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-orange-50 flex items-center gap-3 transition-colors"
+                  >
+                    <div className="p-1.5 bg-orange-100 rounded-lg">
+                      <Icon icon="mdi:account-cancel" className="text-orange-600" />
+                    </div>
+                    <span className="font-medium">Bannir</span>
+                  </button>
+                )}
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                <button
+                  onClick={() => handleDeleteAction(chauffeur)}
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-red-50 flex items-center gap-3 transition-colors"
+                >
+                  <div className="p-1.5 bg-red-100 rounded-lg">
+                    <Icon icon="mdi:delete" className="text-red-600" />
+                  </div>
+                  <span className="font-medium text-red-600">Supprimer</span>
+                </button>
+              </>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
 
       {/* Form Modal */}
       <ChauffeurFormModal

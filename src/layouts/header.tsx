@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
@@ -15,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
   const [name, setName] = useState<string>("");
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -25,6 +26,17 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fermer le menu profil quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const formattedTime = currentTime.toLocaleTimeString([], {
@@ -92,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
         </div>
 
         {/* Avatar */}
-        <div className="relative">
+        <div className="relative" ref={profileMenuRef}>
           <button
             onClick={toggleProfile}
             className="relative overflow-hidden transition-all duration-300 transform rounded-full ring-2 ring-yellow-300 hover:ring-yellow-300 hover:scale-110 focus:outline-none"
@@ -124,20 +136,26 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
                 </div>
 
                 {/* Liens rapides */}
-                <a
-                  href="#profile"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-yellow-100"
+                <button
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    router.push("/profil");
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-yellow-100"
                 >
                   <Icon icon="carbon:user-avatar" className="mr-3 text-yellow-300" />
                   Mon profil
-                </a>
-                <a
-                  href="#settings"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-yellow-100"
+                </button>
+                <button
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    router.push("/parametres/administrateurs");
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-yellow-100"
                 >
                   <Icon icon="carbon:settings" className="mr-3 text-yellow-300" />
                   Parametres
-                </a>
+                </button>
 
                 {/* Separateur */}
                 <div className="my-1 border-t border-gray-200"></div>

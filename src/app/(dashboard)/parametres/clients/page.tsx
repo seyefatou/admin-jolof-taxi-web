@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -10,6 +11,20 @@ import Pagination from "@/components/Pagination";
 import ClientFormModal from "@/components/clients/ClientFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { SERVICE_CLIENT, ClientProps, CreateClientData, UpdateClientData } from "@/services/client-service";
+import {
+  AnimatedTableRow,
+  StatusBadge,
+  OnlineBadge,
+  AvatarWithStatus,
+  StatCard,
+  TableContainer,
+  TableHeader,
+  TableHeaderCell,
+  TableCell,
+  EmptyState,
+  PageHeader,
+  AddButton,
+} from "@/components/ui/AnimatedTable";
 
 export default function ClientsList() {
   const router = useRouter();
@@ -33,9 +48,11 @@ export default function ClientsList() {
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Action menu
+  // Action menu with portal
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const statusOptions = [
     { value: "ALL", label: "Tous les statuts", icon: "mdi:format-list-bulleted" },
@@ -55,7 +72,13 @@ export default function ClientsList() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenuId(null);
+        const clickedButton = Array.from(buttonRefs.current.values()).some(
+          (btn) => btn && btn.contains(event.target as Node)
+        );
+        if (!clickedButton) {
+          setOpenMenuId(null);
+          setMenuPosition(null);
+        }
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -111,19 +134,33 @@ export default function ClientsList() {
     setCurrentPage(1);
   };
 
-  const getStatusBadge = (status: string) => {
-    const config: Record<string, { bg: string; text: string; label: string }> = {
-      ACTIVE: { bg: "bg-green-100", text: "text-green-700", label: "Actif" },
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
-      DEACTIVATED: { bg: "bg-gray-100", text: "text-gray-700", label: "Desactive" },
-      BANNED: { bg: "bg-red-100", text: "text-red-700", label: "Banni" },
-    };
-    const c = config[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
-        {c.label}
-      </span>
-    );
+  // Toggle menu with position calculation
+  const toggleMenu = (clientId: string) => {
+    if (openMenuId === clientId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    } else {
+      const button = buttonRefs.current.get(clientId);
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        const menuHeight = 320;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        let top: number;
+        if (spaceBelow >= menuHeight || spaceBelow >= spaceAbove) {
+          top = rect.bottom + window.scrollY + 4;
+        } else {
+          top = rect.top + window.scrollY - menuHeight - 4;
+        }
+
+        setMenuPosition({
+          top,
+          left: rect.right + window.scrollX - 192,
+        });
+        setOpenMenuId(clientId);
+      }
+    }
   };
 
   // CRUD Actions
@@ -136,11 +173,13 @@ export default function ClientsList() {
     setSelectedClient(client);
     setShowFormModal(true);
     setOpenMenuId(null);
+    setMenuPosition(null);
   };
 
   const handleViewDetails = (client: ClientProps) => {
     router.push(`/parametres/clients/${client.matricule}`);
     setOpenMenuId(null);
+    setMenuPosition(null);
   };
 
   const handleFormSubmit = async (data: CreateClientData | UpdateClientData) => {
@@ -171,12 +210,14 @@ export default function ClientsList() {
     setConfirmAction({ type, client });
     setShowConfirmModal(true);
     setOpenMenuId(null);
+    setMenuPosition(null);
   };
 
   const handleDeleteAction = (client: ClientProps) => {
     setConfirmAction({ type: "delete", client });
     setShowConfirmModal(true);
     setOpenMenuId(null);
+    setMenuPosition(null);
   };
 
   const executeAction = async () => {
@@ -278,7 +319,10 @@ export default function ClientsList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-200"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-yellow-400 absolute top-0 left-0"></div>
+        </div>
       </div>
     );
   }
@@ -288,73 +332,23 @@ export default function ClientsList() {
       <ToastContainer position="bottom-right" />
 
       {/* Header */}
-      <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
-        <div className="p-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">
-            <Icon icon="mdi:account-group" className="inline mr-2" />
-            Gestion des Clients
-            <span className="text-yellow-500 ml-2">({filteredClients.length})</span>
-          </h1>
-          <button
-            onClick={handleAddClient}
-            className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors flex items-center gap-2"
-          >
-            <Icon icon="mdi:plus" />
-            Ajouter
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Gestion des Clients"
+        icon="mdi:account-group"
+        count={filteredClients.length}
+        action={<AddButton onClick={handleAddClient} label="Ajouter" />}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <Icon icon="mdi:account-group" className="text-xl text-gray-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-              <p className="text-xs text-gray-500">Total</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Icon icon="mdi:check-circle" className="text-xl text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-              <p className="text-xs text-gray-500">Actifs</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Icon icon="mdi:circle" className="text-xl text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-blue-600">{stats.online}</p>
-              <p className="text-xs text-gray-500">En ligne</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Icon icon="mdi:clock-outline" className="text-xl text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              <p className="text-xs text-gray-500">En attente</p>
-            </div>
-          </div>
-        </div>
+        <StatCard title="Total" value={stats.total} icon="mdi:account-group" color="gray" index={0} />
+        <StatCard title="Actifs" value={stats.active} icon="mdi:check-circle" color="green" index={1} />
+        <StatCard title="En ligne" value={stats.online} icon="mdi:wifi" color="blue" index={2} />
+        <StatCard title="En attente" value={stats.pending} icon="mdi:clock-outline" color="yellow" index={3} />
       </div>
 
       {/* Filtres */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md p-4 mb-6">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <FilterDropdown
             label="Statut"
@@ -373,23 +367,23 @@ export default function ClientsList() {
           />
 
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 mb-2">
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
               <Icon icon="mdi:magnify" className="inline mr-1" />
               Recherche
             </label>
-            <div className="relative">
-              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="relative group">
+              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-yellow-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Rechercher par nom, email ou telephone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 outline-none transition-all duration-200"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <Icon icon="mdi:close-circle" />
                 </button>
@@ -400,159 +394,67 @@ export default function ClientsList() {
       </div>
 
       {/* Tableau */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+      <TableContainer>
         <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Client</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Telephone</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">En ligne</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
-            </tr>
-          </thead>
+          <TableHeader>
+            <TableHeaderCell>ID</TableHeaderCell>
+            <TableHeaderCell>Client</TableHeaderCell>
+            <TableHeaderCell>Email</TableHeaderCell>
+            <TableHeaderCell>Telephone</TableHeaderCell>
+            <TableHeaderCell>Statut</TableHeaderCell>
+            <TableHeaderCell>Disponibilite</TableHeaderCell>
+            <TableHeaderCell className="text-center">Actions</TableHeaderCell>
+          </TableHeader>
           <tbody>
             {paginatedClients.length > 0 ? (
               paginatedClients.map((client, index) => (
-                <tr key={client.matricule} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-xs">{client.matricule}</td>
-                  <td className="px-4 py-3">
+                <AnimatedTableRow key={client.matricule} index={index}>
+                  <TableCell>
+                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {client.matricule}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <AvatarWithStatus
+                      name={client.name}
+                      avatar={client.avatar}
+                      isOnline={client.isOnline}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-gray-600">{client.email || "-"}</span>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="relative">
-                        {client.avatar ? (
-                          <img
-                            src={client.avatar}
-                            alt={client.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <img
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(client.name || "U")}&background=random`}
-                            alt={client.name || "User"}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        )}
-                        {client.isOnline && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
-                      </div>
-                      <div>
-                        <span className="font-medium">
-                          {client.name ? client.name : <span className="text-gray-400 italic">Indisponible</span>}
-                        </span>
-                      </div>
+                      <Icon icon="mdi:phone" className="text-gray-400" />
+                      <span className="font-medium">{client.phone}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{client.email || "-"}</td>
-                  <td className="px-4 py-3">{client.phone}</td>
-                  <td className="px-4 py-3">{getStatusBadge(client.status)}</td>
-                  <td className="px-4 py-3">
-                    {client.isOnline ? (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 shadow-sm">
-                        <Icon icon="mdi:wifi" className="text-sm" />
-                        En ligne
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 shadow-sm">
-                        <Icon icon="mdi:wifi-off" className="text-sm" />
-                        Hors ligne
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative" ref={openMenuId === client.matricule ? menuRef : null}>
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === client.matricule ? null : client.matricule)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      >
-                        <Icon icon="mdi:dots-vertical" className="text-gray-600" />
-                      </button>
-
-                      {openMenuId === client.matricule && (
-                        <div className={`absolute right-0 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50 max-h-80 overflow-y-auto ${
-                          index >= paginatedClients.length - 3 ? "bottom-full mb-1" : "top-full mt-1"
-                        }`}>
-                          <button
-                            onClick={() => handleViewDetails(client)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:eye" className="text-yellow-600" />
-                            Voir details
-                          </button>
-                          <button
-                            onClick={() => handleEditClient(client)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:pencil" className="text-blue-600" />
-                            Modifier
-                          </button>
-
-                          <div className="border-t border-gray-100 my-1"></div>
-
-                          {client.status !== "ACTIVE" && (
-                            <button
-                              onClick={() => handleStatusAction("activate", client)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:check-circle" className="text-green-600" />
-                              Activer
-                            </button>
-                          )}
-                          {client.status !== "PENDING" && (
-                            <button
-                              onClick={() => handleStatusAction("pending", client)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:clock-outline" className="text-yellow-600" />
-                              Mettre en attente
-                            </button>
-                          )}
-                          {client.status !== "DEACTIVATED" && (
-                            <button
-                              onClick={() => handleStatusAction("deactivate", client)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:account-off" className="text-gray-600" />
-                              Desactiver
-                            </button>
-                          )}
-                          {client.status !== "BANNED" && (
-                            <button
-                              onClick={() => handleStatusAction("ban", client)}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Icon icon="mdi:account-cancel" className="text-orange-600" />
-                              Bannir
-                            </button>
-                          )}
-
-                          <div className="border-t border-gray-100 my-1"></div>
-
-                          <button
-                            onClick={() => handleDeleteAction(client)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
-                          >
-                            <Icon icon="mdi:delete" />
-                            Supprimer
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={client.status} />
+                  </TableCell>
+                  <TableCell>
+                    <OnlineBadge isOnline={client.isOnline} />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      ref={(el) => {
+                        if (el) buttonRefs.current.set(client.matricule, el);
+                      }}
+                      onClick={() => toggleMenu(client.matricule)}
+                      className="p-2 hover:bg-yellow-100 rounded-full transition-all duration-200 hover:scale-110"
+                    >
+                      <Icon icon="mdi:dots-vertical" className="text-gray-600" />
+                    </button>
+                  </TableCell>
+                </AnimatedTableRow>
               ))
             ) : (
-              <tr className="border-t border-gray-100">
-                <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                  <Icon icon="mdi:account-off" className="text-6xl mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium">Aucun client trouve</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Les clients apparaitront ici une fois ajoutes
-                  </p>
-                </td>
-              </tr>
+              <EmptyState
+                icon="mdi:account-group-outline"
+                title="Aucun client trouve"
+                description="Les clients apparaitront ici une fois ajoutes"
+              />
             )}
           </tbody>
         </table>
@@ -567,7 +469,94 @@ export default function ClientsList() {
             onItemsPerPageChange={handleItemsPerPageChange}
           />
         )}
-      </div>
+      </TableContainer>
+
+      {/* Action Menu Portal */}
+      {openMenuId && menuPosition && typeof window !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[9999] w-48 bg-white border border-gray-200 rounded-xl shadow-2xl py-2 animate-fadeIn"
+            style={{
+              top: menuPosition.top,
+              left: menuPosition.left,
+            }}
+          >
+            {(() => {
+              const client = clients.find((c) => c.matricule === openMenuId);
+              if (!client) return null;
+
+              return (
+                <>
+                  <button
+                    onClick={() => handleViewDetails(client)}
+                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-yellow-50 flex items-center gap-3 transition-colors"
+                  >
+                    <Icon icon="mdi:eye" className="text-yellow-600 text-lg" />
+                    <span>Voir details</span>
+                  </button>
+                  <button
+                    onClick={() => handleEditClient(client)}
+                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                  >
+                    <Icon icon="mdi:pencil" className="text-blue-600 text-lg" />
+                    <span>Modifier</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 my-2"></div>
+
+                  {client.status !== "ACTIVE" && (
+                    <button
+                      onClick={() => handleStatusAction("activate", client)}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-green-50 flex items-center gap-3 transition-colors"
+                    >
+                      <Icon icon="mdi:check-circle" className="text-green-600 text-lg" />
+                      <span>Activer</span>
+                    </button>
+                  )}
+                  {client.status !== "PENDING" && (
+                    <button
+                      onClick={() => handleStatusAction("pending", client)}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-yellow-50 flex items-center gap-3 transition-colors"
+                    >
+                      <Icon icon="mdi:clock-outline" className="text-yellow-600 text-lg" />
+                      <span>Mettre en attente</span>
+                    </button>
+                  )}
+                  {client.status !== "DEACTIVATED" && (
+                    <button
+                      onClick={() => handleStatusAction("deactivate", client)}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                    >
+                      <Icon icon="mdi:account-off" className="text-gray-600 text-lg" />
+                      <span>Desactiver</span>
+                    </button>
+                  )}
+                  {client.status !== "BANNED" && (
+                    <button
+                      onClick={() => handleStatusAction("ban", client)}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-orange-50 flex items-center gap-3 transition-colors"
+                    >
+                      <Icon icon="mdi:account-cancel" className="text-orange-600 text-lg" />
+                      <span>Bannir</span>
+                    </button>
+                  )}
+
+                  <div className="border-t border-gray-100 my-2"></div>
+
+                  <button
+                    onClick={() => handleDeleteAction(client)}
+                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3 transition-colors"
+                  >
+                    <Icon icon="mdi:delete" className="text-lg" />
+                    <span>Supprimer</span>
+                  </button>
+                </>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
 
       {/* Form Modal */}
       <ClientFormModal

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@iconify/react";
 
 interface PaginationProps {
@@ -28,7 +29,9 @@ export default function Pagination({
   onItemsPerPageChange,
 }: PaginationProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -38,8 +41,14 @@ export default function Pagination({
   // Fermer le dropdown quand on clique en dehors
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
         setIsDropdownOpen(false);
+        setDropdownPosition(null);
       }
     };
 
@@ -52,6 +61,7 @@ export default function Pagination({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsDropdownOpen(false);
+        setDropdownPosition(null);
       }
     };
 
@@ -64,6 +74,27 @@ export default function Pagination({
       onItemsPerPageChange(value);
     }
     setIsDropdownOpen(false);
+    setDropdownPosition(null);
+  };
+
+  const handleToggleDropdown = () => {
+    if (isDropdownOpen) {
+      setIsDropdownOpen(false);
+      setDropdownPosition(null);
+    } else {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const dropdownHeight = itemsPerPageOptions.length * 40 + 10; // Approximate height
+
+        // Open upward since it's at the bottom of the table
+        setDropdownPosition({
+          top: rect.top - dropdownHeight + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+        });
+      }
+      setIsDropdownOpen(true);
+    }
   };
 
   const getPageNumbers = () => {
@@ -111,10 +142,11 @@ export default function Pagination({
           <strong>{totalItems}</strong> elements
         </span>
         {onItemsPerPageChange && (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative">
             <button
+              ref={buttonRef}
               type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={handleToggleDropdown}
               className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm transition-all duration-200 ${
                 isDropdownOpen
                   ? "border-yellow-400 ring-2 ring-yellow-200 bg-yellow-50"
@@ -129,32 +161,42 @@ export default function Pagination({
                 }`}
               />
             </button>
-
-            {isDropdownOpen && (
-              <div className="absolute z-50 bottom-full mb-1 left-0 min-w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                <ul className="py-1">
-                  {itemsPerPageOptions.map((option) => (
-                    <li key={option.value}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelect(option.value)}
-                        className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between transition-colors duration-150 ${
-                          itemsPerPage === option.value
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "text-gray-700 hover:bg-yellow-50 hover:text-yellow-700"
-                        }`}
-                      >
-                        <span>{option.label}</span>
-                        {itemsPerPage === option.value && (
-                          <Icon icon="mdi:check" className="text-yellow-600" />
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
+        )}
+
+        {/* Dropdown Portal - Rendered outside to avoid overflow clipping */}
+        {isDropdownOpen && dropdownPosition && typeof window !== 'undefined' && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+            style={{
+              top: dropdownPosition.top,
+              left: dropdownPosition.left,
+              minWidth: dropdownPosition.width,
+            }}
+          >
+            <ul className="py-1">
+              {itemsPerPageOptions.map((option) => (
+                <li key={option.value}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(option.value)}
+                    className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between transition-colors duration-150 ${
+                      itemsPerPage === option.value
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "text-gray-700 hover:bg-yellow-50 hover:text-yellow-700"
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    {itemsPerPage === option.value && (
+                      <Icon icon="mdi:check" className="text-yellow-600" />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.body
         )}
       </div>
 

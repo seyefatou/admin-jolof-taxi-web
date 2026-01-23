@@ -6,13 +6,22 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_VEHICULES, VehiculeResp } from "@/services/vehicule-service";
 import Pagination from "@/components/Pagination";
+import {
+  AnimatedTableRow,
+  TableContainer,
+  TableHeader,
+  TableHeaderCell,
+  TableCell,
+  EmptyState,
+  PageHeader,
+} from "@/components/ui/AnimatedTable";
 
 const getServiceCategory = (year: number) => {
   const currentYear = new Date().getFullYear();
   const age = currentYear - year;
-  if (age < 2) return { category: "Confort+", color: "text-indigo-600", bg: "bg-indigo-100" };
-  if (age < 10) return { category: "Confort", color: "text-yellow-600", bg: "bg-yellow-100" };
-  return { category: "Eco", color: "text-green-600", bg: "bg-green-100" };
+  if (age < 2) return { category: "Confort+", color: "text-indigo-700", bg: "bg-gradient-to-r from-indigo-100 to-purple-100", border: "border-indigo-200", icon: "mdi:star-circle" };
+  if (age < 10) return { category: "Confort", color: "text-yellow-700", bg: "bg-gradient-to-r from-yellow-100 to-amber-100", border: "border-yellow-200", icon: "mdi:car-seat" };
+  return { category: "Eco", color: "text-green-700", bg: "bg-gradient-to-r from-green-100 to-emerald-100", border: "border-green-200", icon: "mdi:leaf" };
 };
 
 type SortConfig = {
@@ -66,11 +75,11 @@ export default function VehiculesPage() {
 
   // Indicateur de direction du tri
   const getSortIcon = (key: string) => {
-    if (sortConfig.key !== key) return null;
+    if (sortConfig.key !== key) return <Icon icon="mdi:unfold-more-horizontal" className="text-gray-400" />;
     return sortConfig.direction === "ascending" ? (
-      <Icon icon="mdi:chevron-up" className="text-lg" />
+      <Icon icon="mdi:chevron-up" className="text-yellow-600" />
     ) : (
-      <Icon icon="mdi:chevron-down" className="text-lg" />
+      <Icon icon="mdi:chevron-down" className="text-yellow-600" />
     );
   };
 
@@ -134,10 +143,24 @@ export default function VehiculesPage() {
     setExpandedCarId(expandedCarId === id ? null : id);
   };
 
+  // Stats
+  const stats = {
+    total: cars.length,
+    eco: cars.filter((car) => new Date().getFullYear() - car.year >= 10).length,
+    comfort: cars.filter((car) => {
+      const age = new Date().getFullYear() - car.year;
+      return age >= 2 && age < 10;
+    }).length,
+    comfortPlus: cars.filter((car) => new Date().getFullYear() - car.year < 2).length,
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-200"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-yellow-400 absolute top-0 left-0"></div>
+        </div>
       </div>
     );
   }
@@ -146,36 +169,33 @@ export default function VehiculesPage() {
     <div className="w-full">
       <ToastContainer position="bottom-right" />
 
-      <div className="bg-gray-50 border shadow-md border-gray-200 rounded-xl mb-6">
-        <div className="p-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">
-            <Icon icon="mdi:car" className="inline mr-2" />
-            Gestion des Vehicules
-            <span className="text-yellow-500 ml-2">({filteredCars.length})</span>
-          </h1>
-        </div>
-      </div>
+      {/* Header */}
+      <PageHeader
+        title="Gestion des Vehicules"
+        icon="mdi:car"
+        count={filteredCars.length}
+      />
 
       {/* Filtres par catégorie - Cards cliquables */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {/* Tous */}
         <button
           onClick={() => setFilterCategory("all")}
-          className={`relative p-4 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${
+          className={`relative p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1 ${
             filterCategory === "all"
               ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 shadow-lg"
               : "border-gray-200 bg-white hover:border-yellow-300 hover:shadow-md"
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${filterCategory === "all" ? "bg-yellow-400" : "bg-gray-100"}`}>
+            <div className={`p-3 rounded-xl transition-all duration-300 ${filterCategory === "all" ? "bg-yellow-400 shadow-md" : "bg-gray-100"}`}>
               <Icon icon="mdi:car-multiple" className={`text-2xl ${filterCategory === "all" ? "text-white" : "text-gray-600"}`} />
             </div>
             <div className="text-left">
               <p className={`text-2xl font-bold ${filterCategory === "all" ? "text-yellow-600" : "text-gray-800"}`}>
-                {cars.length}
+                {stats.total}
               </p>
-              <p className="text-sm text-gray-500">Tous</p>
+              <p className="text-sm text-gray-500 font-medium">Tous</p>
             </div>
           </div>
           {filterCategory === "all" && (
@@ -188,25 +208,25 @@ export default function VehiculesPage() {
         {/* Eco */}
         <button
           onClick={() => setFilterCategory("eco")}
-          className={`relative p-4 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${
+          className={`relative p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1 ${
             filterCategory === "eco"
-              ? "border-green-400 bg-gradient-to-br from-green-50 to-green-100 shadow-lg"
+              ? "border-green-400 bg-gradient-to-br from-green-50 to-emerald-100 shadow-lg"
               : "border-gray-200 bg-white hover:border-green-300 hover:shadow-md"
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${filterCategory === "eco" ? "bg-green-500" : "bg-green-100"}`}>
+            <div className={`p-3 rounded-xl transition-all duration-300 ${filterCategory === "eco" ? "bg-green-500 shadow-md" : "bg-green-100"}`}>
               <Icon icon="mdi:leaf" className={`text-2xl ${filterCategory === "eco" ? "text-white" : "text-green-600"}`} />
             </div>
             <div className="text-left">
               <p className={`text-2xl font-bold ${filterCategory === "eco" ? "text-green-600" : "text-gray-800"}`}>
-                {cars.filter((car) => new Date().getFullYear() - car.year >= 10).length}
+                {stats.eco}
               </p>
-              <p className="text-sm text-gray-500">Eco</p>
+              <p className="text-sm text-gray-500 font-medium">Eco</p>
             </div>
           </div>
           <div className="mt-2">
-            <p className="text-xs text-gray-400">Vehicules 10+ ans</p>
+            <p className="text-xs text-gray-400">10+ ans</p>
           </div>
           {filterCategory === "eco" && (
             <div className="absolute top-2 right-2">
@@ -218,28 +238,25 @@ export default function VehiculesPage() {
         {/* Confort */}
         <button
           onClick={() => setFilterCategory("comfort")}
-          className={`relative p-4 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${
+          className={`relative p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1 ${
             filterCategory === "comfort"
               ? "border-yellow-400 bg-gradient-to-br from-amber-50 to-yellow-100 shadow-lg"
               : "border-gray-200 bg-white hover:border-yellow-300 hover:shadow-md"
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${filterCategory === "comfort" ? "bg-yellow-500" : "bg-yellow-100"}`}>
+            <div className={`p-3 rounded-xl transition-all duration-300 ${filterCategory === "comfort" ? "bg-yellow-500 shadow-md" : "bg-yellow-100"}`}>
               <Icon icon="mdi:car-seat" className={`text-2xl ${filterCategory === "comfort" ? "text-white" : "text-yellow-600"}`} />
             </div>
             <div className="text-left">
               <p className={`text-2xl font-bold ${filterCategory === "comfort" ? "text-yellow-600" : "text-gray-800"}`}>
-                {cars.filter((car) => {
-                  const age = new Date().getFullYear() - car.year;
-                  return age >= 2 && age < 10;
-                }).length}
+                {stats.comfort}
               </p>
-              <p className="text-sm text-gray-500">Confort</p>
+              <p className="text-sm text-gray-500 font-medium">Confort</p>
             </div>
           </div>
           <div className="mt-2">
-            <p className="text-xs text-gray-400">Vehicules 2-10 ans</p>
+            <p className="text-xs text-gray-400">2-10 ans</p>
           </div>
           {filterCategory === "comfort" && (
             <div className="absolute top-2 right-2">
@@ -251,25 +268,25 @@ export default function VehiculesPage() {
         {/* Confort+ */}
         <button
           onClick={() => setFilterCategory("comfort-plus")}
-          className={`relative p-4 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${
+          className={`relative p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1 ${
             filterCategory === "comfort-plus"
-              ? "border-indigo-400 bg-gradient-to-br from-indigo-50 to-indigo-100 shadow-lg"
+              ? "border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-100 shadow-lg"
               : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md"
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${filterCategory === "comfort-plus" ? "bg-indigo-500" : "bg-indigo-100"}`}>
+            <div className={`p-3 rounded-xl transition-all duration-300 ${filterCategory === "comfort-plus" ? "bg-indigo-500 shadow-md" : "bg-indigo-100"}`}>
               <Icon icon="mdi:star-circle" className={`text-2xl ${filterCategory === "comfort-plus" ? "text-white" : "text-indigo-600"}`} />
             </div>
             <div className="text-left">
               <p className={`text-2xl font-bold ${filterCategory === "comfort-plus" ? "text-indigo-600" : "text-gray-800"}`}>
-                {cars.filter((car) => new Date().getFullYear() - car.year < 2).length}
+                {stats.comfortPlus}
               </p>
-              <p className="text-sm text-gray-500">Confort+</p>
+              <p className="text-sm text-gray-500 font-medium">Confort+</p>
             </div>
           </div>
           <div className="mt-2">
-            <p className="text-xs text-gray-400">Vehicules &lt; 2 ans</p>
+            <p className="text-xs text-gray-400">&lt; 2 ans</p>
           </div>
           {filterCategory === "comfort-plus" && (
             <div className="absolute top-2 right-2">
@@ -280,22 +297,30 @@ export default function VehiculesPage() {
       </div>
 
       {/* Barre de recherche */}
-      <div className="bg-white border border-gray-200 rounded-t-xl shadow-md p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-5 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <div className="relative flex-1 min-w-[200px] group">
+            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-yellow-500 transition-colors" />
             <input
               type="text"
               placeholder="Rechercher par marque, modele, immatriculation ou proprietaire..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300"
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-200 focus:border-yellow-400 transition-all duration-200"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <Icon icon="mdi:close-circle" />
+              </button>
+            )}
           </div>
           {filterCategory !== "all" && (
             <button
               onClick={() => setFilterCategory("all")}
-              className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center gap-2"
+              className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 transition-colors"
             >
               <Icon icon="mdi:close" />
               Effacer le filtre
@@ -304,127 +329,205 @@ export default function VehiculesPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-t-0 border-gray-200 shadow-md overflow-x-auto">
+      {/* Tableau */}
+      <TableContainer>
         <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort("id")}
-              >
-                <div className="flex items-center gap-1">
-                  ID {getSortIcon("id")}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort("brand")}
-              >
-                <div className="flex items-center gap-1">
-                  Marque/Modele {getSortIcon("brand")}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort("year")}
-              >
-                <div className="flex items-center gap-1">
-                  Annee {getSortIcon("year")}
-                </div>
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Categorie</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Immatriculation</th>
-              <th
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort("owner.name")}
-              >
-                <div className="flex items-center gap-1">
-                  Proprietaire {getSortIcon("owner.name")}
-                </div>
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Disponibilite</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
-            </tr>
-          </thead>
+          <TableHeader>
+            <th
+              className="px-5 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => handleSort("id")}
+            >
+              <div className="flex items-center gap-1">
+                ID {getSortIcon("id")}
+              </div>
+            </th>
+            <th
+              className="px-5 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => handleSort("brand")}
+            >
+              <div className="flex items-center gap-1">
+                Marque/Modele {getSortIcon("brand")}
+              </div>
+            </th>
+            <th
+              className="px-5 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => handleSort("year")}
+            >
+              <div className="flex items-center gap-1">
+                Annee {getSortIcon("year")}
+              </div>
+            </th>
+            <TableHeaderCell>Categorie</TableHeaderCell>
+            <TableHeaderCell>Immatriculation</TableHeaderCell>
+            <th
+              className="px-5 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => handleSort("owner.name")}
+            >
+              <div className="flex items-center gap-1">
+                Proprietaire {getSortIcon("owner.name")}
+              </div>
+            </th>
+            <TableHeaderCell>Statut</TableHeaderCell>
+            <TableHeaderCell>Disponibilite</TableHeaderCell>
+            <TableHeaderCell className="text-center">Actions</TableHeaderCell>
+          </TableHeader>
           <tbody>
             {paginatedCars.length > 0 ? (
-              paginatedCars.map((car) => {
+              paginatedCars.map((car, index) => {
                 const serviceCategory = getServiceCategory(car.year);
                 const isExpanded = expandedCarId === car.id;
 
                 return (
                   <>
-                    <tr key={car.id} className={`border-t border-gray-100 hover:bg-gray-50 ${isExpanded ? "bg-yellow-50" : ""}`}>
-                      <td className="px-4 py-3 font-medium">{car.id}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{car.brand}</div>
-                        <div className="text-gray-500 text-sm">{car.model}</div>
-                      </td>
-                      <td className="px-4 py-3">{car.year}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${serviceCategory.bg} ${serviceCategory.color}`}>
+                    <AnimatedTableRow
+                      key={car.id}
+                      index={index}
+                      className={isExpanded ? "bg-yellow-50" : ""}
+                    >
+                      <TableCell>
+                        <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          #{car.id}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <Icon icon="mdi:car" className="text-xl text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-800">{car.brand}</div>
+                            <div className="text-gray-500 text-sm">{car.model}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">{car.year}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${serviceCategory.bg} ${serviceCategory.color} border ${serviceCategory.border} shadow-sm`}>
+                          <Icon icon={serviceCategory.icon} className="text-sm" />
                           {serviceCategory.category}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">{car.licensePlateNumber}</td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono font-medium bg-gray-100 px-2 py-1 rounded">
+                          {car.licensePlateNumber}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-yellow-200 flex items-center justify-center text-yellow-600 font-medium">
-                            {car.owner.name.charAt(0)}
-                          </div>
-                          <span>{car.owner.name}</span>
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(car.owner.name)}&background=FEF08A&color=713F12&bold=true`}
+                            alt={car.owner.name}
+                            className="w-8 h-8 rounded-full"
+                          />
+                          <span className="font-medium">{car.owner.name}</span>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          car.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}>
-                          {car.status === "ACTIVE" ? "Actif" : "Inactif"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          car.isAvailable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {car.isAvailable ? "Disponible" : "Indisponible"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell>
+                        {car.status === "ACTIVE" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200 shadow-sm">
+                            <Icon icon="mdi:check-circle" className="text-sm" />
+                            Actif
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-red-100 to-rose-100 text-red-700 border border-red-200 shadow-sm">
+                            <Icon icon="mdi:close-circle" className="text-sm" />
+                            Inactif
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {car.isAvailable ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200 shadow-sm">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            Disponible
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-gray-100 to-slate-100 text-gray-600 border border-gray-200 shadow-sm">
+                            <span className="h-2 w-2 rounded-full bg-gray-400"></span>
+                            Indisponible
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
                         <button
                           onClick={() => toggleCarDetails(car.id)}
-                          className="text-yellow-600 hover:text-yellow-800 font-medium"
+                          className={`px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
+                            isExpanded
+                              ? "bg-yellow-400 text-black shadow-md"
+                              : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                          }`}
                         >
                           {isExpanded ? "Masquer" : "Details"}
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </AnimatedTableRow>
                     {isExpanded && (
-                      <tr key={`${car.id}-details`}>
-                        <td colSpan={9} className="px-6 py-4 bg-yellow-50">
+                      <tr key={`${car.id}-details`} className="bg-gradient-to-r from-yellow-50 to-amber-50">
+                        <td colSpan={9} className="px-6 py-6">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Details du vehicule</h4>
-                              <div className="text-sm space-y-1">
-                                <p><span className="text-gray-500">Couleur:</span> {car.color || "Non specifie"}</p>
-                                <p><span className="text-gray-500">N de licence:</span> {car.licenseNumber}</p>
+                            <div className="bg-white p-4 rounded-xl border border-yellow-200 shadow-sm">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Icon icon="mdi:car-info" className="text-yellow-600 text-xl" />
+                                <h4 className="font-semibold text-gray-900">Details du vehicule</h4>
+                              </div>
+                              <div className="text-sm space-y-2">
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Couleur:</span>
+                                  <span className="font-medium">{car.color || "Non specifie"}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">N de licence:</span>
+                                  <span className="font-medium">{car.licenseNumber}</span>
+                                </p>
                               </div>
                             </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Proprietaire</h4>
-                              <div className="text-sm space-y-1">
-                                <p><span className="text-gray-500">Telephone:</span> {car.owner.phone}</p>
-                                <p><span className="text-gray-500">Email:</span> {car.owner.email || "Non specifie"}</p>
-                                <p><span className="text-gray-500">Matricule:</span> {car.owner.matricule}</p>
-                                <p><span className="text-gray-500">Ville:</span> {car.owner.address?.city}</p>
+                            <div className="bg-white p-4 rounded-xl border border-yellow-200 shadow-sm">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Icon icon="mdi:account" className="text-yellow-600 text-xl" />
+                                <h4 className="font-semibold text-gray-900">Proprietaire</h4>
+                              </div>
+                              <div className="text-sm space-y-2">
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Telephone:</span>
+                                  <span className="font-medium">{car.owner.phone}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Email:</span>
+                                  <span className="font-medium">{car.owner.email || "Non specifie"}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Matricule:</span>
+                                  <span className="font-medium font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{car.owner.matricule}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Ville:</span>
+                                  <span className="font-medium">{car.owner.address?.city}</span>
+                                </p>
                               </div>
                             </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Affiliation Garage</h4>
-                              <div className="text-sm space-y-1">
-                                <p><span className="text-gray-500">Nom:</span> {car.owner.garageAffiliation?.name || "N/A"}</p>
-                                <p><span className="text-gray-500">Adresse:</span> {car.owner.garageAffiliation?.address || "N/A"}</p>
-                                <p><span className="text-gray-500">Responsable:</span> {car.owner.garageAffiliation?.responsiblePerson || "N/A"}</p>
+                            <div className="bg-white p-4 rounded-xl border border-yellow-200 shadow-sm">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Icon icon="mdi:garage" className="text-yellow-600 text-xl" />
+                                <h4 className="font-semibold text-gray-900">Affiliation Garage</h4>
+                              </div>
+                              <div className="text-sm space-y-2">
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Nom:</span>
+                                  <span className="font-medium">{car.owner.garageAffiliation?.name || "N/A"}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Adresse:</span>
+                                  <span className="font-medium">{car.owner.garageAffiliation?.address || "N/A"}</span>
+                                </p>
+                                <p className="flex justify-between">
+                                  <span className="text-gray-500">Responsable:</span>
+                                  <span className="font-medium">{car.owner.garageAffiliation?.responsiblePerson || "N/A"}</span>
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -435,12 +538,11 @@ export default function VehiculesPage() {
                 );
               })
             ) : (
-              <tr className="border-t border-gray-100">
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                  <Icon icon="mdi:car-off" className="text-4xl mx-auto mb-2 text-gray-300" />
-                  Aucun vehicule trouve
-                </td>
-              </tr>
+              <EmptyState
+                icon="mdi:car-off"
+                title="Aucun vehicule trouve"
+                description="Les vehicules apparaitront ici une fois ajoutes"
+              />
             )}
           </tbody>
         </table>
@@ -455,7 +557,7 @@ export default function VehiculesPage() {
             onItemsPerPageChange={handleItemsPerPageChange}
           />
         )}
-      </div>
+      </TableContainer>
     </div>
   );
 }
