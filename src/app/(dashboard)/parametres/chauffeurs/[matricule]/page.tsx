@@ -5,9 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import ConfirmModal from "@/components/ConfirmModal";
-import { SERVICE_CHAUFFEUR, ChauffeurProps } from "@/services/chauffeur-service";
-import { SERVICE_DOCUMENT, DriverDocument, DocumentType } from "@/services/document-service";
+import { SERVICE_CHAUFFEUR, ChauffeurProps, DriverDocumentInfo } from "@/services/chauffeur-service";
+import { SERVICE_DOCUMENT, DocumentType } from "@/services/document-service";
 
 export default function ChauffeurDetails() {
   const params = useParams();
@@ -16,9 +15,8 @@ export default function ChauffeurDetails() {
 
   const [loading, setLoading] = useState(true);
   const [chauffeur, setChauffeur] = useState<ChauffeurProps | null>(null);
-  const [documents, setDocuments] = useState<DriverDocument[]>([]);
+  const [documents, setDocuments] = useState<DriverDocumentInfo[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
-  const [activeTab, setActiveTab] = useState<"info" | "documents" | "wallet">("info");
 
   // Document upload
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -32,38 +30,35 @@ export default function ChauffeurDetails() {
   // Confirm modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "approve" | "reject" | "delete";
-    document: DriverDocument;
+    type: "approve" | "reject" | "delete" | "activate" | "deactivate";
+    document?: DriverDocumentInfo;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
+  // Image preview modal
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState("");
+
   const loadData = async () => {
     try {
       setLoading(true);
-
-      // Charger le chauffeur en premier (obligatoire)
       const chauffeurRes = await SERVICE_CHAUFFEUR.getOne(matricule);
-      console.log("Chauffeur response:", chauffeurRes);
 
-      if (chauffeurRes.status === 200) {
+      if (chauffeurRes.status === 200 && chauffeurRes.data) {
         setChauffeur(chauffeurRes.data);
+        setDocuments(chauffeurRes.data.driverDocument || []);
       } else {
         toast.error(chauffeurRes.message || "Chauffeur non trouve");
         return;
       }
 
-      // Charger documents et types (optionnel - ne pas bloquer si erreur)
       try {
-        const [documentsRes, typesRes] = await Promise.all([
-          SERVICE_DOCUMENT.getDriverDocuments(matricule),
-          SERVICE_DOCUMENT.getDocumentTypes(),
-        ]);
-        setDocuments(documentsRes.data || []);
+        const typesRes = await SERVICE_DOCUMENT.getDocumentTypes();
         setDocumentTypes(typesRes.data || []);
       } catch (docError) {
-        console.log("Documents non disponibles:", docError);
-        // Ne pas afficher d'erreur, les documents sont optionnels
+        console.log("Types de documents non disponibles:", docError);
       }
     } catch (error: unknown) {
       console.error("Erreur chargement chauffeur:", error);
@@ -112,12 +107,23 @@ export default function ChauffeurDetails() {
     }
   };
 
-  const handleDocumentAction = (type: "approve" | "reject" | "delete", document: DriverDocument) => {
+  const handleDocumentAction = (type: "approve" | "reject" | "delete", document: DriverDocumentInfo) => {
     setConfirmAction({ type, document });
     setShowConfirmModal(true);
   };
 
-  const executeDocumentAction = async () => {
+  const handleStatusAction = (type: "activate" | "deactivate") => {
+    setConfirmAction({ type });
+    setShowConfirmModal(true);
+  };
+
+  const openImagePreview = (imageUrl: string, title: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewTitle(title);
+    setShowImageModal(true);
+  };
+
+  const executeAction = async () => {
     if (!confirmAction) return;
 
     setActionLoading(true);
@@ -127,26 +133,29 @@ export default function ChauffeurDetails() {
 
       switch (type) {
         case "approve":
-          res = await SERVICE_DOCUMENT.approveDocument(document.id);
+          if (document) res = await SERVICE_DOCUMENT.approveDocument(document.id);
           break;
         case "reject":
-          if (!rejectionReason.trim()) {
-            toast.error("Veuillez indiquer une raison de rejet");
-            setActionLoading(false);
-            return;
-          }
-          res = await SERVICE_DOCUMENT.rejectDocument(document.id, rejectionReason);
+          if (document) res = await SERVICE_DOCUMENT.rejectDocument(document.id, rejectionReason.trim() || undefined);
           break;
         case "delete":
-          res = await SERVICE_DOCUMENT.deleteDocument(document.id);
+          if (document) res = await SERVICE_DOCUMENT.deleteDocument(document.id);
+          break;
+        case "activate":
+          res = await SERVICE_CHAUFFEUR.activate(matricule);
+          break;
+        case "deactivate":
+          res = await SERVICE_CHAUFFEUR.deactivate(matricule);
           break;
       }
 
-      if (res.status === 200 || res.status === 201) {
-        const messages = {
+      if (res && (res.status === 200 || res.status === 201)) {
+        const messages: Record<string, string> = {
           approve: "Document approuve avec succes",
           reject: "Document rejete",
           delete: "Document supprime",
+          activate: "Chauffeur active avec succes",
+          deactivate: "Chauffeur desactive avec succes",
         };
         toast.success(messages[type]);
         setShowConfirmModal(false);
@@ -154,7 +163,7 @@ export default function ChauffeurDetails() {
         setRejectionReason("");
         loadData();
       } else {
-        toast.error(res.message || "Erreur lors de l'operation");
+        toast.error("Erreur lors de l'operation");
       }
     } catch (error) {
       toast.error("Erreur lors de l'operation");
@@ -164,346 +173,544 @@ export default function ChauffeurDetails() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const config: Record<string, { bg: string; text: string; label: string }> = {
-      ACTIVE: { bg: "bg-green-100", text: "text-green-700", label: "Actif" },
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
-      DEACTIVATED: { bg: "bg-gray-100", text: "text-gray-700", label: "Desactive" },
-      BANNED: { bg: "bg-red-100", text: "text-red-700", label: "Banni" },
+  const getStatusConfig = (status: string) => {
+    const config: Record<string, { bg: string; text: string; border: string; label: string; icon: string }> = {
+      ACTIVE: { bg: "bg-green-500", text: "text-white", border: "border-green-500", label: "Actif", icon: "mdi:check-circle" },
+      PENDING: { bg: "bg-yellow-500", text: "text-white", border: "border-yellow-500", label: "En attente", icon: "mdi:clock-outline" },
+      DEACTIVATED: { bg: "bg-gray-500", text: "text-white", border: "border-gray-500", label: "Desactive", icon: "mdi:account-off" },
+      BANNED: { bg: "bg-red-500", text: "text-white", border: "border-red-500", label: "Banni", icon: "mdi:account-cancel" },
+      DELETED: { bg: "bg-red-700", text: "text-white", border: "border-red-700", label: "Supprime", icon: "mdi:delete" },
     };
-    const c = config[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status };
-    return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${c.bg} ${c.text}`}>
-        {c.label}
-      </span>
-    );
+    return config[status] || { bg: "bg-gray-500", text: "text-white", border: "border-gray-500", label: status, icon: "mdi:help-circle" };
   };
 
-  const getDocumentStatusBadge = (status: string) => {
-    const config: Record<string, { bg: string; text: string; label: string }> = {
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
-      APPROVED: { bg: "bg-green-100", text: "text-green-700", label: "Approuve" },
-      REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejete" },
+  const getDocStatusConfig = (status: string) => {
+    const config: Record<string, { bg: string; text: string; label: string; icon: string }> = {
+      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente", icon: "mdi:clock-outline" },
+      APPROVED: { bg: "bg-green-100", text: "text-green-700", label: "Approuve", icon: "mdi:check-circle" },
+      REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejete", icon: "mdi:close-circle" },
     };
-    const c = config[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
-        {c.label}
-      </span>
-    );
+    return config[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status, icon: "mdi:help-circle" };
+  };
+
+  const formatBalance = (balance: string | number) => {
+    const num = typeof balance === 'string' ? parseFloat(balance) : balance;
+    return num.toLocaleString('fr-FR');
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-yellow-200 border-t-yellow-500 mx-auto"></div>
+            <Icon icon="mdi:account" className="absolute inset-0 m-auto text-yellow-500 text-3xl" />
+          </div>
+          <p className="mt-4 text-gray-500 font-medium">Chargement des informations...</p>
+        </div>
       </div>
     );
   }
 
   if (!chauffeur) {
     return (
-      <div className="text-center py-12">
-        <Icon icon="mdi:account-off" className="text-6xl mx-auto mb-4 text-gray-300" />
-        <p className="text-lg font-medium text-gray-600">Chauffeur non trouve</p>
-        <button
-          onClick={() => router.back()}
-          className="mt-4 px-4 py-2 bg-yellow-300 text-black rounded-lg hover:bg-yellow-400"
-        >
-          Retour
-        </button>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Icon icon="mdi:account-off" className="text-5xl text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Chauffeur introuvable</h2>
+          <p className="text-gray-500 mb-6">Le chauffeur demande n'existe pas ou a ete supprime.</p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Icon icon="mdi:arrow-left" className="inline mr-2" />
+            Retour a la liste
+          </button>
+        </div>
       </div>
     );
   }
 
+  const statusConfig = getStatusConfig(chauffeur.status);
+
   return (
-    <div className="w-full">
+    <div className="w-full min-h-screen bg-gray-50 pb-8">
       <ToastContainer position="bottom-right" />
 
-      {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md mb-6">
-        <div className="p-6">
+      {/* Header avec retour */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-6 py-4">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+            className="flex items-center gap-2 text-gray-600 hover:text-yellow-600 transition-colors font-medium"
           >
-            <Icon icon="mdi:arrow-left" />
-            Retour a la liste
+            <Icon icon="mdi:arrow-left" className="text-xl" />
+            <span>Retour a la liste des chauffeurs</span>
           </button>
-
-          <div className="flex items-start gap-6">
-            <div className="relative">
-              {chauffeur.avatar ? (
-                <img
-                  src={chauffeur.avatar}
-                  alt={chauffeur.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-yellow-300"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-yellow-200 flex items-center justify-center text-yellow-600 text-3xl font-bold border-4 border-yellow-300">
-                  {chauffeur.name?.charAt(0) || "?"}
-                </div>
-              )}
-              {chauffeur.isOnline && (
-                <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-3 border-white rounded-full"></div>
-              )}
-            </div>
-
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-gray-800">{chauffeur.name}</h1>
-                {getStatusBadge(chauffeur.status)}
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500">Matricule</p>
-                  <p className="font-medium">{chauffeur.matricule}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Telephone</p>
-                  <p className="font-medium">{chauffeur.phone}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Email</p>
-                  <p className="font-medium">{chauffeur.email || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Note</p>
-                  <p className="font-medium flex items-center gap-1">
-                    <Icon icon="mdi:star" className="text-yellow-500" />
-                    {chauffeur.rating > 0 ? chauffeur.rating.toFixed(1) : "N/A"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="border-t border-gray-200">
-          <div className="flex">
-            <button
-              onClick={() => setActiveTab("info")}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "info"
-                  ? "border-yellow-400 text-yellow-600 bg-yellow-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Icon icon="mdi:information" className="inline mr-2" />
-              Informations
-            </button>
-            <button
-              onClick={() => setActiveTab("documents")}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "documents"
-                  ? "border-yellow-400 text-yellow-600 bg-yellow-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Icon icon="mdi:file-document-multiple" className="inline mr-2" />
-              Documents ({documents.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("wallet")}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "wallet"
-                  ? "border-yellow-400 text-yellow-600 bg-yellow-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Icon icon="mdi:wallet" className="inline mr-2" />
-              Portefeuille
-            </button>
+      {/* Profile Header Card */}
+      <div className="px-6 -mt-0">
+        <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-400 rounded-b-3xl shadow-xl p-8 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+
+          <div className="relative flex flex-col md:flex-row items-center gap-6">
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-2xl overflow-hidden bg-white">
+                {chauffeur.avatar ? (
+                  <img src={chauffeur.avatar} alt={chauffeur.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <span className="text-5xl font-bold text-gray-400">
+                      {chauffeur.name?.charAt(0)?.toUpperCase() || "?"}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {/* Online indicator */}
+              <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white ${chauffeur.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}>
+                {chauffeur.isOnline && (
+                  <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75"></span>
+                )}
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                {chauffeur.name || "Nom non renseigne"}
+              </h1>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
+                <span className={`px-4 py-2 rounded-full text-sm font-bold ${statusConfig.bg} ${statusConfig.text} flex items-center gap-2 shadow-lg`}>
+                  <Icon icon={statusConfig.icon} />
+                  {statusConfig.label}
+                </span>
+                <span className={`px-4 py-2 rounded-full text-sm font-bold ${chauffeur.isOnline ? 'bg-green-500 text-white' : 'bg-white/20 text-white'} flex items-center gap-2`}>
+                  <span className={`w-2 h-2 rounded-full ${chauffeur.isOnline ? 'bg-white' : 'bg-white/50'}`}></span>
+                  {chauffeur.isOnline ? 'En ligne' : 'Hors ligne'}
+                </span>
+              </div>
+              <p className="text-white/80 font-mono text-lg">ID: {chauffeur.matricule}</p>
+            </div>
+
+            {/* Rating */}
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <Icon icon="mdi:star" className="text-3xl text-white" />
+                <span className="text-4xl font-bold text-white">
+                  {chauffeur.rating > 0 ? chauffeur.rating.toFixed(1) : "N/A"}
+                </span>
+              </div>
+              <p className="text-white/80 text-sm font-medium">Note moyenne</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      {activeTab === "info" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Vehicule */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Icon icon="mdi:car" className="text-yellow-500" />
-              Vehicule
-            </h3>
+      {/* Quick Actions */}
+      <div className="px-6 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {chauffeur.status !== "ACTIVE" && (
+            <button
+              onClick={() => handleStatusAction("activate")}
+              className="bg-white border-2 border-green-500 rounded-2xl p-4 hover:bg-green-50 transition-all group shadow-md hover:shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                  <Icon icon="mdi:check-circle" className="text-2xl text-green-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-green-700">Activer</p>
+                  <p className="text-xs text-gray-500">le compte</p>
+                </div>
+              </div>
+            </button>
+          )}
+          {chauffeur.status === "ACTIVE" && (
+            <button
+              onClick={() => handleStatusAction("deactivate")}
+              className="bg-white border-2 border-orange-500 rounded-2xl p-4 hover:bg-orange-50 transition-all group shadow-md hover:shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                  <Icon icon="mdi:account-off" className="text-2xl text-orange-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-orange-700">Desactiver</p>
+                  <p className="text-xs text-gray-500">le compte</p>
+                </div>
+              </div>
+            </button>
+          )}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="bg-white border-2 border-blue-500 rounded-2xl p-4 hover:bg-blue-50 transition-all group shadow-md hover:shadow-lg"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <Icon icon="mdi:file-plus" className="text-2xl text-blue-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-blue-700">Ajouter</p>
+                <p className="text-xs text-gray-500">un document</p>
+              </div>
+            </div>
+          </button>
+          <a
+            href={`tel:${chauffeur.phone}`}
+            className="bg-white border-2 border-purple-500 rounded-2xl p-4 hover:bg-purple-50 transition-all group shadow-md hover:shadow-lg"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                <Icon icon="mdi:phone" className="text-2xl text-purple-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-purple-700">Appeler</p>
+                <p className="text-xs text-gray-500">{chauffeur.phone}</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="px-6 mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Contact & Wallet */}
+        <div className="space-y-6">
+          {/* Contact Info */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:card-account-details" className="text-yellow-400" />
+                Informations de contact
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:phone" className="text-2xl text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Telephone</p>
+                  <p className="text-lg font-bold text-gray-800">{chauffeur.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:email" className="text-2xl text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Email</p>
+                  <p className="text-lg font-bold text-gray-800">{chauffeur.email || "Non renseigne"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:identifier" className="text-2xl text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Matricule</p>
+                  <p className="text-lg font-bold text-gray-800 font-mono">{chauffeur.matricule}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Wallet Card */}
+          <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 rounded-2xl shadow-xl p-6 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Icon icon="mdi:wallet" className="text-3xl" />
+                </div>
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Solde du portefeuille</p>
+                  <p className="text-xs text-white/60">Wallet ID: {chauffeur.wallet?.id || "N/A"}</p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-4xl md:text-5xl font-bold">
+                  {chauffeur.wallet ? formatBalance(chauffeur.wallet.balance) : "0"}
+                  <span className="text-2xl ml-2">FCFA</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Column - Vehicle & Garage */}
+        <div className="space-y-6">
+          {/* Vehicle Card */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:car" className="text-yellow-300" />
+                Vehicule assigne
+              </h3>
+            </div>
             {chauffeur.vehicule ? (
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Marque/Modele</span>
-                  <span className="font-medium">{chauffeur.vehicule.brand} {chauffeur.vehicule.model}</span>
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
+                    <Icon icon="mdi:car-side" className="text-4xl text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-800">
+                      {chauffeur.vehicule.brand} {chauffeur.vehicule.model}
+                    </p>
+                    <p className="text-gray-500">{chauffeur.vehicule.year}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Annee</span>
-                  <span className="font-medium">{chauffeur.vehicule.year}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Plaque</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.licensePlateNumber}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Licence</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.licenseNumber || "N/A"}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Couleur</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.color || "N/A"}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Categorie</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || "N/A"}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Immatriculation</span>
-                  <span className="font-medium">{chauffeur.vehicule.licensePlateNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Couleur</span>
-                  <span className="font-medium">{chauffeur.vehicule.color || "-"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Statut</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                <div className="mt-4">
+                  <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${
                     chauffeur.vehicule.isAvailable
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
                   }`}>
+                    <Icon icon={chauffeur.vehicule.isAvailable ? "mdi:check-circle" : "mdi:close-circle"} />
                     {chauffeur.vehicule.isAvailable ? "Disponible" : "Indisponible"}
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-400 italic">Aucun vehicule assigne</p>
+              <div className="p-8 text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon icon="mdi:car-off" className="text-4xl text-gray-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-600 mb-2">Aucun vehicule</p>
+                <p className="text-gray-400">Ce chauffeur n'a pas de vehicule assigne</p>
+              </div>
             )}
           </div>
 
-          {/* Garage */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Icon icon="mdi:garage" className="text-yellow-500" />
-              Garage
-            </h3>
+          {/* Garage Card */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:garage" className="text-white" />
+                Garage affilie
+              </h3>
+            </div>
             {chauffeur.garageAffiliation ? (
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Nom</span>
-                  <span className="font-medium">{chauffeur.garageAffiliation.name}</span>
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center">
+                    <Icon icon="mdi:garage-variant" className="text-3xl text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-800">{chauffeur.garageAffiliation.name}</p>
+                    <p className="text-gray-500 font-mono">{chauffeur.garageAffiliation.code}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Code</span>
-                  <span className="font-medium">{chauffeur.garageAffiliation.code}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Adresse</span>
-                  <span className="font-medium">{chauffeur.garageAffiliation.address}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ville</span>
-                  <span className="font-medium">{chauffeur.garageAffiliation.city}</span>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Icon icon="mdi:map-marker" className="text-xl text-amber-500" />
+                    <span>{chauffeur.garageAffiliation.address}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Icon icon="mdi:city" className="text-xl text-amber-500" />
+                    <span>{chauffeur.garageAffiliation.city}</span>
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-400 italic">Aucun garage affilie</p>
+              <div className="p-8 text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon icon="mdi:garage-alert" className="text-4xl text-gray-400" />
+                </div>
+                <p className="text-xl font-bold text-gray-600 mb-2">Aucun garage</p>
+                <p className="text-gray-400">Ce chauffeur n'est affilie a aucun garage</p>
+              </div>
             )}
           </div>
         </div>
-      )}
 
-      {activeTab === "documents" && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <Icon icon="mdi:file-document-multiple" className="text-yellow-500" />
-              Documents du chauffeur
-            </h3>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 flex items-center gap-2"
-            >
-              <Icon icon="mdi:plus" />
-              Ajouter un document
-            </button>
-          </div>
+        {/* Right Column - Documents */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:file-document-multiple" className="text-yellow-300" />
+                Documents ({documents.length})
+              </h3>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"
+              >
+                <Icon icon="mdi:plus" />
+                Ajouter
+              </button>
+            </div>
 
-          {documents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="border border-gray-200 rounded-xl p-4 hover:border-yellow-300 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Icon icon="mdi:file-document" className="text-2xl text-yellow-500" />
-                      <div>
-                        <p className="font-medium text-sm">{doc.documentType.name}</p>
-                        <p className="text-xs text-gray-400">{doc.documentType.code}</p>
+            <div className="p-4 max-h-[600px] overflow-y-auto">
+              {documents.length > 0 ? (
+                <div className="space-y-4">
+                  {documents.map((doc) => {
+                    const docStatus = getDocStatusConfig(doc.status);
+                    return (
+                      <div key={doc.id} className="border-2 border-gray-100 rounded-2xl p-4 hover:border-yellow-300 transition-all hover:shadow-md">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                              <Icon icon="mdi:file-document" className="text-2xl text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-800">{doc.DocumentType?.title || "Document"}</p>
+                              <p className="text-xs text-gray-400">ID: {doc.id}</p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${docStatus.bg} ${docStatus.text}`}>
+                            <Icon icon={docStatus.icon} />
+                            {docStatus.label}
+                          </span>
+                        </div>
+
+                        {/* Images */}
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          {doc.frontImage && (
+                            <button
+                              onClick={() => openImagePreview(doc.frontImage!, `${doc.DocumentType?.title || "Document"} - Recto`)}
+                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all"
+                            >
+                              <img
+                                src={doc.frontImage}
+                                alt="Recto"
+                                className="w-full h-24 object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                <Icon icon="mdi:eye" className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">Recto</span>
+                            </button>
+                          )}
+                          {doc.backImage && (
+                            <button
+                              onClick={() => openImagePreview(doc.backImage!, `${doc.DocumentType?.title || "Document"} - Verso`)}
+                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all"
+                            >
+                              <img
+                                src={doc.backImage}
+                                alt="Verso"
+                                className="w-full h-24 object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                <Icon icon="mdi:eye" className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">Verso</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          {doc.status === "PENDING" && (
+                            <>
+                              <button
+                                onClick={() => handleDocumentAction("approve", doc)}
+                                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                              >
+                                <Icon icon="mdi:check" />
+                                Approuver
+                              </button>
+                              <button
+                                onClick={() => handleDocumentAction("reject", doc)}
+                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                              >
+                                <Icon icon="mdi:close" />
+                                Rejeter
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleDocumentAction("delete", doc)}
+                            className="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <Icon icon="mdi:delete" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    {getDocumentStatusBadge(doc.status)}
-                  </div>
-
-                  {doc.expiryDate && (
-                    <p className="text-xs text-gray-500 mb-2">
-                      Expire le: {new Date(doc.expiryDate).toLocaleDateString()}
-                    </p>
-                  )}
-
-                  {doc.rejectionReason && (
-                    <p className="text-xs text-red-500 mb-2">
-                      Raison: {doc.rejectionReason}
-                    </p>
-                  )}
-
-                  <div className="flex gap-2 mt-3">
-                    <a
-                      href={doc.documentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1"
-                    >
-                      <Icon icon="mdi:eye" />
-                      Voir
-                    </a>
-
-                    {doc.status === "PENDING" && (
-                      <>
-                        <button
-                          onClick={() => handleDocumentAction("approve", doc)}
-                          className="px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center gap-1"
-                        >
-                          <Icon icon="mdi:check" />
-                        </button>
-                        <button
-                          onClick={() => handleDocumentAction("reject", doc)}
-                          className="px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-1"
-                        >
-                          <Icon icon="mdi:close" />
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => handleDocumentAction("delete", doc)}
-                      className="px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-1"
-                    >
-                      <Icon icon="mdi:delete" />
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Icon icon="mdi:file-document-outline" className="text-5xl text-gray-400" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-600 mb-2">Aucun document</p>
+                  <p className="text-gray-400 mb-6">Ce chauffeur n'a pas encore de documents</p>
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-xl transition-colors"
+                  >
+                    <Icon icon="mdi:plus" className="inline mr-2" />
+                    Ajouter un document
+                  </button>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Icon icon="mdi:file-document-outline" className="text-6xl mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Aucun document</p>
-              <p className="text-sm text-gray-400">Ajoutez des documents pour ce chauffeur</p>
-            </div>
-          )}
+          </div>
         </div>
-      )}
+      </div>
 
-      {activeTab === "wallet" && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Icon icon="mdi:wallet" className="text-yellow-500" />
-            Portefeuille
-          </h3>
-          {chauffeur.wallet ? (
-            <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-xl p-6 text-black">
-              <p className="text-sm opacity-80">Solde actuel</p>
-              <p className="text-4xl font-bold">{chauffeur.wallet.balance} FCFA</p>
-              <p className="text-xs opacity-70 mt-2">ID: {chauffeur.wallet.id}</p>
+      {/* Image Preview Modal */}
+      {showImageModal && previewImage && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="absolute inset-0 bg-black/90" onClick={() => setShowImageModal(false)} />
+          <div className="relative max-w-5xl w-full">
+            <div className="absolute top-4 right-4 z-10">
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors"
+              >
+                <Icon icon="mdi:close" className="text-2xl" />
+              </button>
             </div>
-          ) : (
-            <p className="text-gray-400 italic">Aucun portefeuille configure</p>
-          )}
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-white">{previewTitle}</h3>
+            </div>
+            <img
+              src={previewImage}
+              alt={previewTitle}
+              className="max-w-full max-h-[80vh] mx-auto rounded-2xl shadow-2xl object-contain"
+            />
+            <div className="flex justify-center gap-4 mt-4">
+              <a
+                href={previewImage}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
+              >
+                <Icon icon="mdi:open-in-new" />
+                Ouvrir dans un nouvel onglet
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
@@ -511,27 +718,29 @@ export default function ChauffeurDetails() {
       {showUploadModal && (
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowUploadModal(false)} />
-
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-yellow-300 px-6 py-4">
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-black">Ajouter un document</h2>
-                <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
-                  <Icon icon="mdi:close" className="text-xl" />
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Icon icon="mdi:file-plus" />
+                  Ajouter un document
+                </h2>
+                <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+                  <Icon icon="mdi:close" className="text-xl text-white" />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleUploadDocument} className="p-6 space-y-4">
+            <form onSubmit={handleUploadDocument} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Type de document <span className="text-red-500">*</span>
                 </label>
                 <select
                   required
                   value={uploadData.documentTypeId}
                   onChange={(e) => setUploadData({ ...uploadData, documentTypeId: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg"
                 >
                   <option value="">Selectionner un type</option>
                   {documentTypes.map((type) => (
@@ -543,27 +752,29 @@ export default function ChauffeurDetails() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Fichier <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="file"
-                  required
-                  accept="image/*,.pdf"
-                  onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type="file"
+                    required
+                    accept="image/*,.pdf"
+                    onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-100 file:text-blue-700 file:font-semibold"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date d'expiration
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Date d'expiration (optionnel)
                 </label>
                 <input
                   type="date"
                   value={uploadData.expiryDate}
                   onChange={(e) => setUploadData({ ...uploadData, expiryDate: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg"
                 />
               </div>
 
@@ -571,18 +782,18 @@ export default function ChauffeurDetails() {
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-bold transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="flex-1 px-4 py-2.5 bg-yellow-300 text-black rounded-xl hover:bg-yellow-400 font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                 >
                   {uploading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent" />
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                       Envoi...
                     </>
                   ) : (
@@ -598,50 +809,56 @@ export default function ChauffeurDetails() {
         </div>
       )}
 
-      {/* Confirm Modal for document actions */}
+      {/* Confirm Modal */}
       {showConfirmModal && confirmAction && (
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirmModal(false)} />
-
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
             <div className="text-center">
-              <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                confirmAction.type === "approve" ? "bg-green-100" :
-                confirmAction.type === "reject" ? "bg-orange-100" : "bg-red-100"
+              <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                confirmAction.type === "approve" || confirmAction.type === "activate" ? "bg-green-100" :
+                confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "bg-orange-100" : "bg-red-100"
               }`}>
                 <Icon
                   icon={
-                    confirmAction.type === "approve" ? "mdi:check-circle" :
-                    confirmAction.type === "reject" ? "mdi:close-circle" : "mdi:delete"
+                    confirmAction.type === "approve" || confirmAction.type === "activate" ? "mdi:check-circle" :
+                    confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "mdi:close-circle" : "mdi:delete"
                   }
-                  className={`text-3xl ${
-                    confirmAction.type === "approve" ? "text-green-600" :
-                    confirmAction.type === "reject" ? "text-orange-600" : "text-red-600"
+                  className={`text-5xl ${
+                    confirmAction.type === "approve" || confirmAction.type === "activate" ? "text-green-600" :
+                    confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "text-orange-600" : "text-red-600"
                   }`}
                 />
               </div>
 
-              <h3 className="text-xl font-bold text-gray-800 mb-2">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 {confirmAction.type === "approve" ? "Approuver le document" :
-                 confirmAction.type === "reject" ? "Rejeter le document" : "Supprimer le document"}
+                 confirmAction.type === "reject" ? "Rejeter le document" :
+                 confirmAction.type === "delete" ? "Supprimer le document" :
+                 confirmAction.type === "activate" ? "Activer le chauffeur" :
+                 "Desactiver le chauffeur"}
               </h3>
 
               <p className="text-gray-600 mb-4">
                 {confirmAction.type === "approve"
-                  ? `Voulez-vous approuver le document "${confirmAction.document.documentType.name}" ?`
+                  ? `Voulez-vous approuver "${confirmAction.document?.DocumentType?.title || "ce document"}" ?`
                   : confirmAction.type === "reject"
-                  ? `Voulez-vous rejeter le document "${confirmAction.document.documentType.name}" ?`
-                  : `Voulez-vous supprimer le document "${confirmAction.document.documentType.name}" ?`}
+                  ? `Voulez-vous rejeter "${confirmAction.document?.DocumentType?.title || "ce document"}" ?`
+                  : confirmAction.type === "delete"
+                  ? `Voulez-vous supprimer "${confirmAction.document?.DocumentType?.title || "ce document"}" ?`
+                  : confirmAction.type === "activate"
+                  ? `Voulez-vous activer le compte de ${chauffeur.name || "ce chauffeur"} ?`
+                  : `Voulez-vous desactiver le compte de ${chauffeur.name || "ce chauffeur"} ?`}
               </p>
 
               {confirmAction.type === "reject" && (
                 <div className="mb-4">
                   <input
                     type="text"
-                    placeholder="Raison du rejet..."
+                    placeholder="Raison du rejet (optionnel)..."
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all"
                   />
                 </div>
               )}
@@ -653,26 +870,28 @@ export default function ChauffeurDetails() {
                     setConfirmAction(null);
                     setRejectionReason("");
                   }}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-bold transition-colors"
                 >
                   Annuler
                 </button>
                 <button
-                  onClick={executeDocumentAction}
+                  onClick={executeAction}
                   disabled={actionLoading}
-                  className={`flex-1 px-4 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 ${
-                    confirmAction.type === "approve"
+                  className={`flex-1 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all ${
+                    confirmAction.type === "approve" || confirmAction.type === "activate"
                       ? "bg-green-500 hover:bg-green-600 text-white"
-                      : confirmAction.type === "reject"
+                      : confirmAction.type === "reject" || confirmAction.type === "deactivate"
                       ? "bg-orange-500 hover:bg-orange-600 text-white"
                       : "bg-red-500 hover:bg-red-600 text-white"
                   }`}
                 >
                   {actionLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                   ) : (
                     confirmAction.type === "approve" ? "Approuver" :
-                    confirmAction.type === "reject" ? "Rejeter" : "Supprimer"
+                    confirmAction.type === "reject" ? "Rejeter" :
+                    confirmAction.type === "delete" ? "Supprimer" :
+                    confirmAction.type === "activate" ? "Activer" : "Desactiver"
                   )}
                 </button>
               </div>

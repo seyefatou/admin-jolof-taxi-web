@@ -97,10 +97,10 @@ const approveDocument = async (documentId: number) => {
 };
 
 // Rejeter un document
-const rejectDocument = async (documentId: number, reason: string) => {
+const rejectDocument = async (documentId: number, reason?: string) => {
   const res = await Axios.put<DriverDocumentOneResponse>(
     `auth_service/driver-documents/${documentId}/status`,
-    { status: "REJECTED", rejectionReason: reason }
+    reason ? { status: "REJECTED", rejectionReason: reason } : { status: "REJECTED" }
   );
   return res.data;
 };

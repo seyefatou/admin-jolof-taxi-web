@@ -28,7 +28,7 @@ import {
 
 export default function ClientsList() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [clients, setClients] = useState<ClientProps[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -87,38 +87,44 @@ export default function ClientsList() {
 
   const loadClients = async () => {
     try {
-      setLoading(true);
-      let response;
-      if (searchTerm) {
-        response = await SERVICE_CLIENT.search(searchTerm);
-      } else {
-        response = await SERVICE_CLIENT.getAll();
-      }
+      setInitialLoading(true);
+      const response = await SERVICE_CLIENT.getAll();
       setClients(response.data || []);
     } catch (error) {
       toast.error("Erreur lors de la recuperation des clients");
       console.error("Erreur clients:", error);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
+  // Chargement initial
   useEffect(() => {
     loadClients();
-  }, [searchTerm]);
+  }, []);
 
+  // Reset page quand les filtres changent
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, onlineFilter]);
+  }, [statusFilter, onlineFilter, searchTerm]);
 
-  // Filtrage
+  // Filtrage local (recherche + filtres)
   const filteredClients = clients.filter((client) => {
+    // Filtre par recherche (nom, email, telephone, matricule)
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchSearch =
+      searchLower === "" ||
+      client.name?.toLowerCase().includes(searchLower) ||
+      client.email?.toLowerCase().includes(searchLower) ||
+      client.phone?.toLowerCase().includes(searchLower) ||
+      client.matricule?.toLowerCase().includes(searchLower);
+
     const matchStatus = statusFilter === "ALL" || client.status === statusFilter;
     const matchOnline =
       onlineFilter === "ALL" ||
       (onlineFilter === "ONLINE" && client.isOnline) ||
       (onlineFilter === "OFFLINE" && !client.isOnline);
-    return matchStatus && matchOnline;
+    return matchSearch && matchStatus && matchOnline;
   });
 
   // Pagination
@@ -316,7 +322,7 @@ export default function ClientsList() {
     pending: clients.filter((c) => c.status === "PENDING").length,
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="relative">

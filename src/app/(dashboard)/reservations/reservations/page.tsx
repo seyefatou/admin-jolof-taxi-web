@@ -13,7 +13,7 @@ import { SERVICE_CHAUFFEUR, ChauffeurProps } from "@/services/chauffeur-service"
 
 export default function CoursesPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [courses, setCourses] = useState<CourseProps[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<CourseProps[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -86,11 +86,8 @@ export default function CoursesPage() {
 
   const loadCourses = async () => {
     try {
-      setLoading(true);
-      const response = await SERVICE_COURSE.getAll({
-        status: statusFilter,
-        search: searchTerm,
-      });
+      setInitialLoading(true);
+      const response = await SERVICE_COURSE.getAll({});
       // S'assurer que courses est toujours un tableau
       const data = response.data;
       setCourses(Array.isArray(data) ? data : []);
@@ -98,7 +95,7 @@ export default function CoursesPage() {
       toast.error("Erreur lors de la recuperation des courses");
       setCourses([]);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -114,14 +111,32 @@ export default function CoursesPage() {
     }
   };
 
+  // Chargement initial
   useEffect(() => {
     loadCourses();
     loadDrivers();
-  }, [statusFilter, searchTerm]);
+  }, []);
 
   // Filtrage des courses (filtres locaux)
   useEffect(() => {
     let filtered = Array.isArray(courses) ? [...courses] : [];
+
+    // Filtre par recherche (client, chauffeur, adresse, code)
+    const searchLower = searchTerm.toLowerCase().trim();
+    if (searchLower !== "") {
+      filtered = filtered.filter((course) =>
+        course.customer?.name?.toLowerCase().includes(searchLower) ||
+        course.driver?.name?.toLowerCase().includes(searchLower) ||
+        course.pickup_location?.address?.toLowerCase().includes(searchLower) ||
+        course.dropoff_location?.address?.toLowerCase().includes(searchLower) ||
+        course.code_booking?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filtre par status
+    if (statusFilter !== "ALL") {
+      filtered = filtered.filter((course) => course.status === statusFilter);
+    }
 
     // Filtre par date
     if (dateFilter !== "ALL") {
@@ -162,7 +177,7 @@ export default function CoursesPage() {
 
     setFilteredCourses(filtered);
     setCurrentPage(1);
-  }, [courses, dateFilter, paymentFilter, driverFilter]);
+  }, [courses, searchTerm, statusFilter, dateFilter, paymentFilter, driverFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
@@ -286,7 +301,7 @@ export default function CoursesPage() {
     revenue: coursesArray.filter((c) => c.status === "DONE").reduce((sum, c) => sum + c.price, 0),
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-300"></div>

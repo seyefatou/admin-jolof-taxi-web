@@ -30,7 +30,7 @@ import {
 
 export default function ChauffeursList() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [chauffeurs, setChauffeurs] = useState<ChauffeurProps[]>([]);
   const [garages, setGarages] = useState<GaragesProps[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehiculeTypeResp[]>([]);
@@ -111,9 +111,9 @@ export default function ChauffeursList() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      setInitialLoading(true);
       const [chauffeursRes, garagesRes, vehicleTypesRes] = await Promise.all([
-        searchTerm ? SERVICE_CHAUFFEUR.search(searchTerm) : SERVICE_CHAUFFEUR.getAll(),
+        SERVICE_CHAUFFEUR.getAll(),
         SERVICE_GARAGES.getAll(),
         SERVICE_VEHICULES.getTypeList(),
       ]);
@@ -124,20 +124,31 @@ export default function ChauffeursList() {
       toast.error("Erreur lors de la recuperation des donnees");
       console.error("Erreur:", error);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
+  // Chargement initial
   useEffect(() => {
     loadData();
-  }, [searchTerm]);
+  }, []);
 
+  // Reset page quand les filtres changent
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, onlineFilter, garageFilter]);
+  }, [statusFilter, onlineFilter, garageFilter, searchTerm]);
 
-  // Filtrage
+  // Filtrage local (recherche + filtres)
   const filteredChauffeurs = chauffeurs.filter((chauffeur) => {
+    // Filtre par recherche (nom, email, telephone, matricule)
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matchSearch =
+      searchLower === "" ||
+      chauffeur.name?.toLowerCase().includes(searchLower) ||
+      chauffeur.email?.toLowerCase().includes(searchLower) ||
+      chauffeur.phone?.toLowerCase().includes(searchLower) ||
+      chauffeur.matricule?.toLowerCase().includes(searchLower);
+
     const matchStatus = statusFilter === "ALL" || chauffeur.status === statusFilter;
     const matchOnline =
       onlineFilter === "ALL" ||
@@ -146,7 +157,7 @@ export default function ChauffeursList() {
     const matchGarage =
       garageFilter === "ALL" ||
       chauffeur.garageAffiliation?.id?.toString() === garageFilter;
-    return matchStatus && matchOnline && matchGarage;
+    return matchSearch && matchStatus && matchOnline && matchGarage;
   });
 
   // Pagination
@@ -181,7 +192,9 @@ export default function ChauffeursList() {
 
   const handleFormSubmit = async (formData: FormData) => {
     try {
+      console.log("Envoi du formulaire chauffeur...");
       const res = await SERVICE_CHAUFFEUR.create(formData);
+      console.log("Reponse:", res);
 
       if (res.status === 200 || res.status === 201) {
         toast.success("Chauffeur ajoute avec succes");
@@ -193,9 +206,11 @@ export default function ChauffeursList() {
         toast.error(res.message || "Erreur lors de l'operation");
       }
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
+      console.error("Erreur complete:", error);
+      const err = error as { response?: { data?: { message?: string }; status?: number } };
+      console.error("Status:", err?.response?.status);
+      console.error("Data:", err?.response?.data);
       toast.error(err?.response?.data?.message || "Erreur lors de l'operation");
-      console.error(error);
     }
   };
 
@@ -331,7 +346,7 @@ export default function ChauffeursList() {
     ...garages.map((g) => ({ value: g.id.toString(), label: g.name, icon: "mdi:garage-variant" })),
   ];
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="relative">
@@ -422,85 +437,154 @@ export default function ChauffeursList() {
       <TableContainer>
         <table className="w-full">
           <TableHeader>
-            <TableHeaderCell>ID</TableHeaderCell>
             <TableHeaderCell>Chauffeur</TableHeaderCell>
-            <TableHeaderCell>Contact</TableHeaderCell>
-            <TableHeaderCell>Vehicule</TableHeaderCell>
             <TableHeaderCell>Garage</TableHeaderCell>
+            <TableHeaderCell>Contact</TableHeaderCell>
             <TableHeaderCell>Statut</TableHeaderCell>
-            <TableHeaderCell>Disponibilite</TableHeaderCell>
-            <TableHeaderCell>Actions</TableHeaderCell>
+            <TableHeaderCell>Etat Reseau</TableHeaderCell>
+            <TableHeaderCell>Vehicule</TableHeaderCell>
+            <TableHeaderCell className="text-center">Actions</TableHeaderCell>
           </TableHeader>
           <tbody>
             {paginatedChauffeurs.length > 0 ? (
               paginatedChauffeurs.map((chauffeur, index) => (
                 <AnimatedTableRow key={chauffeur.matricule} index={index}>
+                  {/* Chauffeur */}
                   <TableCell>
-                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded-md">
-                      {chauffeur.matricule}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <AvatarWithStatus
-                      name={chauffeur.name}
-                      avatar={chauffeur.avatar}
-                      isOnline={chauffeur.isOnline}
-                      rating={chauffeur.rating}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Icon icon="mdi:email-outline" className="text-gray-400" />
-                        {chauffeur.email || "-"}
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <img
+                          className="w-10 h-10 rounded-full ring-2 ring-gray-100 object-cover"
+                          src={chauffeur.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chauffeur.name || "U")}&background=FEF08A&color=713F12&bold=true`}
+                          alt={chauffeur.name || "User"}
+                        />
+                        {chauffeur.isOnline && (
+                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full">
+                            <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75"></span>
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Icon icon="mdi:phone-outline" className="text-gray-400" />
-                        {chauffeur.phone}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {chauffeur.name || <span className="text-gray-400 italic font-normal">Indisponible</span>}
+                        </p>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Icon icon="mdi:map-marker" className="text-gray-400 text-xs" />
+                          <span className="font-mono text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">{chauffeur.matricule}</span>
+                        </p>
                       </div>
                     </div>
                   </TableCell>
+
+                  {/* Garage */}
+                  <TableCell>
+                    {chauffeur.garageAffiliation ? (
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-yellow-100 rounded-lg">
+                          <Icon icon="mdi:garage" className="text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{chauffeur.garageAffiliation.name}</p>
+                          <p className="text-xs text-gray-500 truncate max-w-[120px]">
+                            {chauffeur.garageAffiliation.address?.slice(0, 20)}...
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs italic flex items-center gap-2">
+                        <Icon icon="mdi:garage-alert" className="text-gray-300" />
+                        Aucun garage
+                      </span>
+                    )}
+                  </TableCell>
+
+                  {/* Contact */}
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Icon icon="mdi:phone" className="text-gray-400 text-sm" />
+                        <span className="font-medium">{chauffeur.phone || "-"}</span>
+                      </div>
+                      {chauffeur.email && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Icon icon="mdi:email-outline" className="text-gray-400 text-sm" />
+                          {chauffeur.email}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Statut */}
+                  <TableCell>
+                    <StatusBadge status={chauffeur.status} />
+                  </TableCell>
+
+                  {/* Etat Reseau */}
+                  <TableCell>
+                    <OnlineBadge isOnline={chauffeur.isOnline} />
+                  </TableCell>
+
+                  {/* Vehicule */}
                   <TableCell>
                     {chauffeur.vehicule ? (
                       <div className="flex items-center gap-2">
                         <div className="p-2 bg-purple-100 rounded-lg">
-                          <Icon icon="mdi:car" className="text-purple-600" />
+                          <Icon icon="mdi:car-side" className="text-purple-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{chauffeur.vehicule.brand} {chauffeur.vehicule.model}</p>
-                          <p className="text-xs text-gray-500">{chauffeur.vehicule.licensePlateNumber}</p>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {chauffeur.vehicule.brand} {chauffeur.vehicule.model}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {chauffeur.vehicule.licensePlateNumber?.toUpperCase()}
+                            {chauffeur.vehicule.type && <span> • {chauffeur.vehicule.type}</span>}
+                          </p>
                         </div>
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm italic flex items-center gap-2">
+                      <span className="text-gray-400 text-xs italic flex items-center gap-2">
                         <Icon icon="mdi:car-off" className="text-gray-300" />
-                        Non assigne
+                        Aucun vehicule
                       </span>
                     )}
                   </TableCell>
+
+                  {/* Actions */}
                   <TableCell>
-                    {chauffeur.garageAffiliation ? (
-                      <div className="flex items-center gap-2">
-                        <Icon icon="mdi:garage" className="text-yellow-600" />
-                        <span className="text-sm">{chauffeur.garageAffiliation.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={chauffeur.status} />
-                  </TableCell>
-                  <TableCell>
-                    <OnlineBadge isOnline={chauffeur.isOnline} />
-                  </TableCell>
-                  <TableCell>
-                    <button
-                      onClick={(e) => handleMenuToggle(chauffeur.matricule, e)}
-                      className="p-2.5 hover:bg-yellow-100 rounded-xl transition-all duration-200 hover:scale-110"
-                    >
-                      <Icon icon="mdi:dots-vertical" className="text-gray-600 text-xl" />
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Details */}
+                      <button
+                        onClick={() => handleViewDetails(chauffeur)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-yellow-100 border border-gray-200 hover:border-yellow-300 transition-all duration-200 hover:scale-110 group"
+                        title="Voir details"
+                      >
+                        <Icon icon="fluent:apps-list-detail-20-filled" className="text-gray-600 group-hover:text-yellow-600 text-lg" />
+                      </button>
+                      {/* Edit */}
+                      <button
+                        onClick={() => handleEditChauffeur(chauffeur)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-blue-100 border border-gray-200 hover:border-blue-300 transition-all duration-200 hover:scale-110 group"
+                        title="Modifier"
+                      >
+                        <Icon icon="basil:edit-solid" className="text-gray-600 group-hover:text-blue-600 text-lg" />
+                      </button>
+                      {/* Delete */}
+                      <button
+                        onClick={() => handleDeleteAction(chauffeur)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 transition-all duration-200 hover:scale-110 group"
+                        title="Supprimer"
+                      >
+                        <Icon icon="weui:delete-filled" className="text-red-500 group-hover:text-red-600 text-lg" />
+                      </button>
+                      {/* More options */}
+                      <button
+                        onClick={(e) => handleMenuToggle(chauffeur.matricule, e)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all duration-200 hover:scale-110"
+                        title="Plus d'options"
+                      >
+                        <Icon icon="mdi:dots-vertical" className="text-gray-600 text-lg" />
+                      </button>
+                    </div>
                   </TableCell>
                 </AnimatedTableRow>
               ))
@@ -526,7 +610,7 @@ export default function ChauffeursList() {
         )}
       </TableContainer>
 
-      {/* Action Menu Portal */}
+      {/* Action Menu Portal - Status options only */}
       {openMenuId && menuPosition && typeof window !== 'undefined' && createPortal(
         <div
           ref={menuRef}
@@ -541,26 +625,9 @@ export default function ChauffeursList() {
             if (!chauffeur) return null;
             return (
               <>
-                <button
-                  onClick={() => handleViewDetails(chauffeur)}
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-yellow-50 flex items-center gap-3 transition-colors"
-                >
-                  <div className="p-1.5 bg-yellow-100 rounded-lg">
-                    <Icon icon="mdi:eye" className="text-yellow-600" />
-                  </div>
-                  <span className="font-medium">Voir details</span>
-                </button>
-                <button
-                  onClick={() => handleEditChauffeur(chauffeur)}
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
-                >
-                  <div className="p-1.5 bg-blue-100 rounded-lg">
-                    <Icon icon="mdi:pencil" className="text-blue-600" />
-                  </div>
-                  <span className="font-medium">Modifier</span>
-                </button>
-
-                <div className="border-t border-gray-100 my-2"></div>
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Changer le statut</p>
+                </div>
 
                 {chauffeur.status !== "ACTIVE" && (
                   <button
@@ -606,18 +673,6 @@ export default function ChauffeursList() {
                     <span className="font-medium">Bannir</span>
                   </button>
                 )}
-
-                <div className="border-t border-gray-100 my-2"></div>
-
-                <button
-                  onClick={() => handleDeleteAction(chauffeur)}
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-red-50 flex items-center gap-3 transition-colors"
-                >
-                  <div className="p-1.5 bg-red-100 rounded-lg">
-                    <Icon icon="mdi:delete" className="text-red-600" />
-                  </div>
-                  <span className="font-medium text-red-600">Supprimer</span>
-                </button>
               </>
             );
           })()}

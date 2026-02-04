@@ -26,6 +26,25 @@ export type GarageInfo = {
   city: string;
 };
 
+export type DocumentTypeInfo = {
+  id: number;
+  title: string;
+  backSide: boolean;
+  frontSide: boolean;
+  status: boolean;
+};
+
+export type DriverDocumentInfo = {
+  id: number;
+  status: string;
+  backImage: string | null;
+  frontImage: string | null;
+  documentTypeId: number | null;
+  driverId: number | null;
+  number: string | null;
+  DocumentType: DocumentTypeInfo;
+};
+
 export type ChauffeurProps = {
   id: number;
   matricule: string;
@@ -39,6 +58,7 @@ export type ChauffeurProps = {
   vehicule: VehicleInfo | null;
   wallet: WalletInfo | null;
   garageAffiliation: GarageInfo | null;
+  driverDocument: DriverDocumentInfo[];
 };
 
 export type CreateChauffeurData = {
@@ -90,12 +110,37 @@ type BaseResponse = {
   status: number;
 };
 
+// Mapper les données de l'API vers le format attendu par le frontend
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mapChauffeurData = (driver: any): ChauffeurProps => {
+  return {
+    id: driver.id,
+    matricule: driver.matricule,
+    name: driver.fullName || driver.name || "",
+    email: driver.email || null,
+    phone: driver.phone || "",
+    status: driver.status || "PENDING",
+    isOnline: driver.isOnline || false,
+    avatar: driver.avatar || null,
+    rating: driver.rating || 0,
+    vehicule: driver.vehicle || driver.vehicule || null,
+    wallet: driver.wallet || null,
+    garageAffiliation: driver.garage || driver.garageAffiliation || null,
+    driverDocument: driver.driverDocument || [],
+  };
+};
+
 // Liste de tous les chauffeurs
 const getAll = async () => {
   const res = await Axios.get<ChauffeurListResponse>(
     `auth_service/users/drivers`
   );
-  return res.data;
+  // Mapper les données pour s'assurer que les champs sont correctement nommés
+  const mappedData = res.data.data?.map(mapChauffeurData) || [];
+  return {
+    ...res.data,
+    data: mappedData,
+  };
 };
 
 // Recherche de chauffeurs
@@ -103,7 +148,11 @@ const search = async (recherche: string) => {
   const res = await Axios.get<ChauffeurListResponse>(
     `auth_service/users/drivers/search?search=${recherche}`
   );
-  return res.data;
+  const mappedData = res.data.data?.map(mapChauffeurData) || [];
+  return {
+    ...res.data,
+    data: mappedData,
+  };
 };
 
 // Chauffeurs en ligne (live tracking)
@@ -111,7 +160,11 @@ const getLiveTracking = async () => {
   const res = await Axios.get<ChauffeurListResponse>(
     `auth_service/users/drivers/live_tracking`
   );
-  return res.data;
+  const mappedData = res.data.data?.map(mapChauffeurData) || [];
+  return {
+    ...res.data,
+    data: mappedData,
+  };
 };
 
 // Détails d'un chauffeur
@@ -119,7 +172,10 @@ const getOne = async (matricule: string) => {
   const res = await Axios.get<ChauffeurOneResponse>(
     `auth_service/users/drivers/${matricule}/detail`
   );
-  return res.data;
+  return {
+    ...res.data,
+    data: res.data.data ? mapChauffeurData(res.data.data) : null,
+  };
 };
 
 // Activer un chauffeur
@@ -151,12 +207,13 @@ const ban = async (matricule: string) => {
 
 // Créer un chauffeur
 const create = async (formData: FormData) => {
+  // Supprimer le Content-Type par défaut pour que Axios définisse automatiquement multipart/form-data avec boundary
   const res = await Axios.post<ChauffeurOneResponse>(
     `auth_service/users/drivers/registration`,
     formData,
     {
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined,
       },
     }
   );
