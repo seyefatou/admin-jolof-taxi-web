@@ -9,13 +9,14 @@ export type UserData = {
   matricule: string;
   phone: string;
   email: string;
-  address: string;
+  adresse: string;
   status: string;
   role: Role;
 };
 
 export type Role = {
   nom: string;
+  nameRole?: string;
   code: string;
   permissions: string[];
 };

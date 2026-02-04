@@ -8,6 +8,7 @@ import { RESERVATIONS } from "@/common/urls/reservations";
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
+import { SERVICE_LOGIN } from "@/services/login-service";
 
 interface MenuVerticalProps {
   petitMenu: boolean;
@@ -56,8 +57,7 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
 
   const handleLogout = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.removeItem("token");
-    localStorage.removeItem("name");
+    SERVICE_LOGIN.IsLogout();
     router.push("/");
   };
 

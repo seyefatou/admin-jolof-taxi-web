@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
+import { SERVICE_LOGIN } from "@/services/login-service";
 
 type HeaderProps = {
   menuPetit: boolean;
@@ -55,8 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
 
   const handleLogout = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.removeItem("token");
-    localStorage.removeItem("name");
+    SERVICE_LOGIN.IsLogout();
     router.push("/");
   };
 
