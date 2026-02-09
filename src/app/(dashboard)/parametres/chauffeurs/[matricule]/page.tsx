@@ -291,8 +291,8 @@ export default function ChauffeurDetails() {
                   <Icon icon={statusConfig.icon} />
                   {statusConfig.label}
                 </span>
-                <span className={`px-4 py-2 rounded-full text-sm font-bold ${chauffeur.isOnline ? 'bg-black/10 text-gray-900' : 'bg-black/5 text-gray-700'} flex items-center gap-2`}>
-                  <span className={`w-2 h-2 rounded-full ${chauffeur.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                <span className={`px-4 py-2 rounded-full text-sm font-bold ${chauffeur.isOnline ? 'bg-green-600 text-white' : 'bg-red-600 text-white'} flex items-center gap-2`}>
+                  <span className={`w-2 h-2 rounded-full ${chauffeur.isOnline ? 'bg-white' : 'bg-white'}`}></span>
                   {chauffeur.isOnline ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
