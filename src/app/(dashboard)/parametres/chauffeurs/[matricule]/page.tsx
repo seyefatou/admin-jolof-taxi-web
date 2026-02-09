@@ -203,8 +203,8 @@ export default function ChauffeurDetails() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-yellow-200 border-t-yellow-500 mx-auto"></div>
-            <Icon icon="mdi:account" className="absolute inset-0 m-auto text-yellow-500 text-3xl" />
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-gray-200 border-t-gray-600 mx-auto"></div>
+            <Icon icon="mdi:account" className="absolute inset-0 m-auto text-gray-600 text-3xl" />
           </div>
           <p className="mt-4 text-gray-500 font-medium">Chargement des informations...</p>
         </div>
@@ -223,7 +223,7 @@ export default function ChauffeurDetails() {
           <p className="text-gray-500 mb-6">Le chauffeur demande n'existe pas ou a ete supprime.</p>
           <button
             onClick={() => router.back()}
-            className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition-all shadow-lg hover:shadow-xl"
+            className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm hover:shadow-md"
           >
             <Icon icon="mdi:arrow-left" className="inline mr-2" />
             Retour a la liste
@@ -244,7 +244,7 @@ export default function ChauffeurDetails() {
         <div className="px-6 py-4">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-yellow-600 transition-colors font-medium"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors font-medium"
           >
             <Icon icon="mdi:arrow-left" className="text-xl" />
             <span>Retour a la liste des chauffeurs</span>
@@ -254,7 +254,7 @@ export default function ChauffeurDetails() {
 
       {/* Profile Header Card */}
       <div className="px-6 -mt-0">
-        <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-400 rounded-b-3xl shadow-xl p-8 relative overflow-hidden">
+        <div className="bg-yellow-400 rounded-b-3xl shadow-xl p-8 relative overflow-hidden">
           {/* Background decoration */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
@@ -283,7 +283,7 @@ export default function ChauffeurDetails() {
 
             {/* Info */}
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
                 {chauffeur.name || "Nom non renseigne"}
               </h1>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
@@ -291,23 +291,23 @@ export default function ChauffeurDetails() {
                   <Icon icon={statusConfig.icon} />
                   {statusConfig.label}
                 </span>
-                <span className={`px-4 py-2 rounded-full text-sm font-bold ${chauffeur.isOnline ? 'bg-green-500 text-white' : 'bg-white/20 text-white'} flex items-center gap-2`}>
-                  <span className={`w-2 h-2 rounded-full ${chauffeur.isOnline ? 'bg-white' : 'bg-white/50'}`}></span>
+                <span className={`px-4 py-2 rounded-full text-sm font-bold ${chauffeur.isOnline ? 'bg-black/10 text-gray-900' : 'bg-black/5 text-gray-700'} flex items-center gap-2`}>
+                  <span className={`w-2 h-2 rounded-full ${chauffeur.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></span>
                   {chauffeur.isOnline ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
-              <p className="text-white/80 font-mono text-lg">ID: {chauffeur.matricule}</p>
+              <p className="text-gray-800 font-mono text-lg">ID: {chauffeur.matricule}</p>
             </div>
 
             {/* Rating */}
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
+            <div className="bg-black/10 backdrop-blur-sm rounded-2xl p-4 text-center border border-black/10">
               <div className="flex items-center justify-center gap-1 mb-1">
-                <Icon icon="mdi:star" className="text-3xl text-white" />
-                <span className="text-4xl font-bold text-white">
+                <Icon icon="mdi:star" className="text-3xl text-gray-900" />
+                <span className="text-4xl font-bold text-gray-900">
                   {chauffeur.rating > 0 ? chauffeur.rating.toFixed(1) : "N/A"}
                 </span>
               </div>
-              <p className="text-white/80 text-sm font-medium">Note moyenne</p>
+              <p className="text-gray-800 text-sm font-medium">Note moyenne</p>
             </div>
           </div>
         </div>
@@ -319,14 +319,14 @@ export default function ChauffeurDetails() {
           {chauffeur.status !== "ACTIVE" && (
             <button
               onClick={() => handleStatusAction("activate")}
-              className="bg-white border-2 border-green-500 rounded-2xl p-4 hover:bg-green-50 transition-all group shadow-md hover:shadow-lg"
+              className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-green-50 hover:border-green-400 transition-all group shadow-sm hover:shadow-md"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                  <Icon icon="mdi:check-circle" className="text-2xl text-green-600" />
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                  <Icon icon="mdi:check-circle" className="text-2xl text-gray-700 group-hover:text-green-600" />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-green-700">Activer</p>
+                  <p className="font-bold text-gray-800">Activer</p>
                   <p className="text-xs text-gray-500">le compte</p>
                 </div>
               </div>
@@ -335,14 +335,14 @@ export default function ChauffeurDetails() {
           {chauffeur.status === "ACTIVE" && (
             <button
               onClick={() => handleStatusAction("deactivate")}
-              className="bg-white border-2 border-orange-500 rounded-2xl p-4 hover:bg-orange-50 transition-all group shadow-md hover:shadow-lg"
+              className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-gray-50 transition-all group shadow-sm hover:shadow-md"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                  <Icon icon="mdi:account-off" className="text-2xl text-orange-600" />
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-yellow-50 transition-colors">
+                  <Icon icon="mdi:account-off" className="text-2xl text-gray-700" />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-orange-700">Desactiver</p>
+                  <p className="font-bold text-gray-800">Desactiver</p>
                   <p className="text-xs text-gray-500">le compte</p>
                 </div>
               </div>
@@ -350,28 +350,28 @@ export default function ChauffeurDetails() {
           )}
           <button
             onClick={() => setShowUploadModal(true)}
-            className="bg-white border-2 border-blue-500 rounded-2xl p-4 hover:bg-blue-50 transition-all group shadow-md hover:shadow-lg"
+            className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-green-50 hover:border-green-400 transition-all group shadow-sm hover:shadow-md"
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <Icon icon="mdi:file-plus" className="text-2xl text-blue-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                <Icon icon="mdi:file-plus" className="text-2xl text-gray-700 group-hover:text-green-600" />
               </div>
               <div className="text-left">
-                <p className="font-bold text-blue-700">Ajouter</p>
+                <p className="font-bold text-gray-800">Ajouter</p>
                 <p className="text-xs text-gray-500">un document</p>
               </div>
             </div>
           </button>
           <a
             href={`tel:${chauffeur.phone}`}
-            className="bg-white border-2 border-purple-500 rounded-2xl p-4 hover:bg-purple-50 transition-all group shadow-md hover:shadow-lg"
+            className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-green-50 hover:border-green-400 transition-all group shadow-sm hover:shadow-md"
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                <Icon icon="mdi:phone" className="text-2xl text-purple-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                <Icon icon="mdi:phone" className="text-2xl text-gray-700 group-hover:text-green-600" />
               </div>
               <div className="text-left">
-                <p className="font-bold text-purple-700">Appeler</p>
+                <p className="font-bold text-gray-800">Appeler</p>
                 <p className="text-xs text-gray-500">{chauffeur.phone}</p>
               </div>
             </div>
@@ -384,8 +384,8 @@ export default function ChauffeurDetails() {
         {/* Left Column - Contact & Wallet */}
         <div className="space-y-6">
           {/* Contact Info */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Icon icon="mdi:card-account-details" className="text-yellow-400" />
                 Informations de contact
@@ -393,8 +393,8 @@ export default function ChauffeurDetails() {
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Icon icon="mdi:phone" className="text-2xl text-blue-600" />
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:phone" className="text-2xl text-gray-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Telephone</p>
@@ -402,8 +402,8 @@ export default function ChauffeurDetails() {
                 </div>
               </div>
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Icon icon="mdi:email" className="text-2xl text-purple-600" />
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:email" className="text-2xl text-gray-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Email</p>
@@ -411,8 +411,8 @@ export default function ChauffeurDetails() {
                 </div>
               </div>
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <Icon icon="mdi:identifier" className="text-2xl text-green-600" />
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <Icon icon="mdi:identifier" className="text-2xl text-gray-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Matricule</p>
@@ -423,12 +423,12 @@ export default function ChauffeurDetails() {
           </div>
 
           {/* Wallet Card */}
-          <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 rounded-2xl shadow-xl p-6 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div className="bg-gray-900 rounded-2xl shadow-sm p-6 text-white relative overflow-hidden border border-gray-200">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Icon icon="mdi:wallet" className="text-3xl" />
+                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center">
+                  <Icon icon="mdi:wallet" className="text-3xl text-yellow-400" />
                 </div>
                 <div>
                   <p className="text-white/80 text-sm font-medium">Solde du portefeuille</p>
@@ -448,18 +448,18 @@ export default function ChauffeurDetails() {
         {/* Middle Column - Vehicle & Garage */}
         <div className="space-y-6">
           {/* Vehicle Card */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Icon icon="mdi:car" className="text-yellow-300" />
+                <Icon icon="mdi:car" className="text-yellow-400" />
                 Vehicule assigne
               </h3>
             </div>
             {chauffeur.vehicule ? (
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
-                    <Icon icon="mdi:car-side" className="text-4xl text-purple-600" />
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
+                    <Icon icon="mdi:car-side" className="text-4xl text-gray-600" />
                   </div>
                   <div>
                     <p className="text-xl font-bold text-gray-800">
@@ -509,18 +509,18 @@ export default function ChauffeurDetails() {
           </div>
 
           {/* Garage Card */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Icon icon="mdi:garage" className="text-white" />
+                <Icon icon="mdi:garage" className="text-yellow-400" />
                 Garage affilie
               </h3>
             </div>
             {chauffeur.garageAffiliation ? (
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center">
-                    <Icon icon="mdi:garage-variant" className="text-3xl text-amber-600" />
+                  <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
+                    <Icon icon="mdi:garage-variant" className="text-3xl text-gray-600" />
                   </div>
                   <div>
                     <p className="text-xl font-bold text-gray-800">{chauffeur.garageAffiliation.name}</p>
@@ -529,11 +529,11 @@ export default function ChauffeurDetails() {
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-gray-600">
-                    <Icon icon="mdi:map-marker" className="text-xl text-amber-500" />
+                    <Icon icon="mdi:map-marker" className="text-xl text-gray-500" />
                     <span>{chauffeur.garageAffiliation.address}</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
-                    <Icon icon="mdi:city" className="text-xl text-amber-500" />
+                    <Icon icon="mdi:city" className="text-xl text-gray-500" />
                     <span>{chauffeur.garageAffiliation.city}</span>
                   </div>
                 </div>
@@ -552,10 +552,10 @@ export default function ChauffeurDetails() {
 
         {/* Right Column - Documents */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Icon icon="mdi:file-document-multiple" className="text-yellow-300" />
+                <Icon icon="mdi:file-document-multiple" className="text-yellow-400" />
                 Documents ({documents.length})
               </h3>
               <button
@@ -573,11 +573,11 @@ export default function ChauffeurDetails() {
                   {documents.map((doc) => {
                     const docStatus = getDocStatusConfig(doc.status);
                     return (
-                      <div key={doc.id} className="border-2 border-gray-100 rounded-2xl p-4 hover:border-yellow-300 transition-all hover:shadow-md">
+                      <div key={doc.id} className="border-2 border-gray-100 rounded-2xl p-4 hover:border-gray-300 transition-all hover:shadow-md">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                              <Icon icon="mdi:file-document" className="text-2xl text-blue-600" />
+                            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                              <Icon icon="mdi:file-document" className="text-2xl text-gray-600" />
                             </div>
                             <div>
                               <p className="font-bold text-gray-800">{doc.DocumentType?.title || "Document"}</p>
@@ -595,7 +595,7 @@ export default function ChauffeurDetails() {
                           {doc.frontImage && (
                             <button
                               onClick={() => openImagePreview(doc.frontImage!, `${doc.DocumentType?.title || "Document"} - Recto`)}
-                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all"
+                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all"
                             >
                               <img
                                 src={doc.frontImage}
@@ -611,7 +611,7 @@ export default function ChauffeurDetails() {
                           {doc.backImage && (
                             <button
                               onClick={() => openImagePreview(doc.backImage!, `${doc.DocumentType?.title || "Document"} - Verso`)}
-                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all"
+                              className="relative group overflow-hidden rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all"
                             >
                               <img
                                 src={doc.backImage}
@@ -666,7 +666,7 @@ export default function ChauffeurDetails() {
                   <p className="text-gray-400 mb-6">Ce chauffeur n'a pas encore de documents</p>
                   <button
                     onClick={() => setShowUploadModal(true)}
-                    className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-xl transition-colors"
+                    className="bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-xl transition-colors"
                   >
                     <Icon icon="mdi:plus" className="inline mr-2" />
                     Ajouter un document
@@ -719,7 +719,7 @@ export default function ChauffeurDetails() {
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowUploadModal(false)} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-5">
+            <div className="bg-gray-900 px-6 py-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Icon icon="mdi:file-plus" />
@@ -740,7 +740,7 @@ export default function ChauffeurDetails() {
                   required
                   value={uploadData.documentTypeId}
                   onChange={(e) => setUploadData({ ...uploadData, documentTypeId: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg"
                 >
                   <option value="">Selectionner un type</option>
                   {documentTypes.map((type) => (
@@ -761,7 +761,7 @@ export default function ChauffeurDetails() {
                     required
                     accept="image/*,.pdf"
                     onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-100 file:text-blue-700 file:font-semibold"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:font-semibold"
                   />
                 </div>
               </div>
@@ -774,7 +774,7 @@ export default function ChauffeurDetails() {
                   type="date"
                   value={uploadData.expiryDate}
                   onChange={(e) => setUploadData({ ...uploadData, expiryDate: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg"
                 />
               </div>
 
@@ -789,7 +789,7 @@ export default function ChauffeurDetails() {
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                 >
                   {uploading ? (
                     <>
