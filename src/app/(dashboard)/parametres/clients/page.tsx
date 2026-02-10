@@ -10,6 +10,8 @@ import FilterDropdown from "@/components/FilterDropdown";
 import Pagination from "@/components/Pagination";
 import ClientFormModal from "@/components/clients/ClientFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExportDropdown from "@/components/ExportDropdown";
+import { exportToExcel, exportToPDF, ExportColumn, STATUS_LABELS, ONLINE_LABELS } from "@/utils/export-table";
 import { SERVICE_CLIENT, ClientProps, CreateClientData, UpdateClientData } from "@/services/client-service";
 import {
   AnimatedTableRow,
@@ -314,6 +316,25 @@ export default function ClientsList() {
     return configs[confirmAction.type];
   };
 
+  // Export columns
+  const exportColumns: ExportColumn<ClientProps>[] = [
+    { header: "Matricule", accessor: (c) => c.matricule },
+    { header: "Nom", accessor: (c) => c.name || "" },
+    { header: "Telephone", accessor: (c) => c.phone || "-" },
+    { header: "Statut", accessor: (c) => STATUS_LABELS[c.status] || c.status },
+  ];
+
+  const handleExport = (format: "pdf" | "excel") => {
+    const config = {
+      fileName: "clients",
+      title: "Liste des Clients",
+      columns: exportColumns,
+      data: filteredClients,
+    };
+    if (format === "pdf") exportToPDF(config);
+    else exportToExcel(config);
+  };
+
   // Stats
   const stats = {
     total: clients.length,
@@ -342,7 +363,12 @@ export default function ClientsList() {
         title="Gestion des Clients"
         icon="mdi:account-group"
         count={filteredClients.length}
-        action={<AddButton onClick={handleAddClient} label="Ajouter" />}
+        action={
+          <div className="flex items-center gap-3">
+            <ExportDropdown onExport={handleExport} />
+            <AddButton onClick={handleAddClient} label="Ajouter" />
+          </div>
+        }
       />
 
       {/* Stats Cards */}

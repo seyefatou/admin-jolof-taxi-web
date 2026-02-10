@@ -10,6 +10,8 @@ import FilterDropdown from "@/components/FilterDropdown";
 import Pagination from "@/components/Pagination";
 import ChauffeurFormModal from "@/components/chauffeurs/ChauffeurFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExportDropdown from "@/components/ExportDropdown";
+import { exportToExcel, exportToPDF, ExportColumn, STATUS_LABELS, ONLINE_LABELS } from "@/utils/export-table";
 import { SERVICE_CHAUFFEUR, ChauffeurProps, UpdateChauffeurData } from "@/services/chauffeur-service";
 import { SERVICE_GARAGES, GaragesProps } from "@/services/garage-service";
 import { SERVICE_VEHICULES, VehiculeTypeResp } from "@/services/vehicule-service";
@@ -332,6 +334,27 @@ export default function ChauffeursList() {
     return configs[confirmAction.type];
   };
 
+  // Export columns
+  const exportColumns: ExportColumn<ChauffeurProps>[] = [
+    { header: "Matricule", accessor: (c) => c.matricule },
+    { header: "Nom", accessor: (c) => c.name || "" },
+    { header: "Telephone", accessor: (c) => c.phone || "-" },
+    { header: "Statut", accessor: (c) => STATUS_LABELS[c.status] || c.status },
+    { header: "Vehicule", accessor: (c) => c.vehicule ? `${c.vehicule.brand} ${c.vehicule.model} — ${c.vehicule.licensePlateNumber?.toUpperCase()}` : "-" },
+    { header: "Garage", accessor: (c) => c.garageAffiliation?.name || "-" },
+  ];
+
+  const handleExport = (format: "pdf" | "excel") => {
+    const config = {
+      fileName: "chauffeurs",
+      title: "Liste des Chauffeurs",
+      columns: exportColumns,
+      data: filteredChauffeurs,
+    };
+    if (format === "pdf") exportToPDF(config);
+    else exportToExcel(config);
+  };
+
   // Stats
   const stats = {
     total: chauffeurs.length,
@@ -368,7 +391,12 @@ export default function ChauffeursList() {
         title="Gestion des Chauffeurs"
         icon="mdi:account-tie"
         count={filteredChauffeurs.length}
-        action={<AddButton onClick={handleAddChauffeur} label="Ajouter" />}
+        action={
+          <div className="flex items-center gap-3">
+            <ExportDropdown onExport={handleExport} />
+            <AddButton onClick={handleAddChauffeur} label="Ajouter" />
+          </div>
+        }
       />
 
       {/* Stats Cards */}

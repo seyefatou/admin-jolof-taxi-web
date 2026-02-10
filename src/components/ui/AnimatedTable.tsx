@@ -321,7 +321,7 @@ export const PageHeader: React.FC<{
   action?: React.ReactNode;
 }> = ({ title, icon, count, action }) => {
   return (
-    <div className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 shadow-lg rounded-2xl mb-6 overflow-hidden">
+    <div className="relative bg-gradient-to-r from-white to-gray-50 border border-gray-200 shadow-lg rounded-2xl mb-6 overflow-visible">
       <div className="p-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-yellow-100 rounded-xl">
@@ -339,7 +339,7 @@ export const PageHeader: React.FC<{
         {action}
       </div>
       {/* Decorative line */}
-      <div className="h-1 bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300"></div>
+      <div className="h-1 bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 rounded-b-2xl"></div>
     </div>
   );
 };
