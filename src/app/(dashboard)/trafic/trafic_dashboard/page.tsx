@@ -3,10 +3,33 @@
 import { useEffect, useState } from "react";
 import { CardDashmini } from "@/components/cards/dash-card";
 import { SERVICE_DASH } from "@/services/dashboard-service";
+import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 import formaterPrixCFAAbrege from "@/utils/number-format";
-import { DataDash } from "@/types/dashboard-types";
+import { DataDash, BookingPeriod } from "@/types/dashboard-types";
 
-const initialData: DataDash = {
+const emptyStats: BookingStats = {
+  total: 0,
+  completed: 0,
+  processing: 0,
+  cancelled: 0,
+  cancelledByCustomer: 0,
+  cancelledByDriver: 0,
+  totalRevenue: 0,
+  totalCommission: 0,
+  services: [],
+};
+
+type DashData = {
+  users: DataDash["users"];
+  bookings: {
+    today: BookingStats;
+    month: BookingStats;
+    year: BookingStats;
+    total: BookingStats;
+  };
+};
+
+const initialData: DashData = {
   users: {
     today: { customers: 0, drivers: 0 },
     month: { customers: 0, drivers: 0 },
@@ -14,56 +37,106 @@ const initialData: DataDash = {
     all: { customers: 0, drivers: 0 },
   },
   bookings: {
-    today: {
-      total: 0,
-      completed: 0,
-      processing: 0,
-      cancelled: 0,
-      totalRevenue: 0,
-      totalCommission: 0,
-      services: [],
-    },
-    month: {
-      total: 0,
-      completed: 0,
-      processing: 0,
-      cancelled: 0,
-      totalRevenue: 0,
-      totalCommission: 0,
-      services: [],
-    },
-    year: {
-      total: 0,
-      completed: 0,
-      processing: 0,
-      cancelled: 0,
-      totalRevenue: 0,
-      totalCommission: 0,
-      services: [],
-    },
-    total: {
-      total: 0,
-      completed: 0,
-      processing: 0,
-      cancelled: 0,
-      totalRevenue: 0,
-      totalCommission: 0,
-      services: [],
-    },
+    today: { ...emptyStats },
+    month: { ...emptyStats },
+    year: { ...emptyStats },
+    total: { ...emptyStats },
   },
 };
 
-export default function Dashboard() {
-  const [data, setData] = useState<DataDash>(initialData);
-  const [role, setRole] = useState<string | null>("");
+type BookingStats = BookingPeriod & {
+  cancelledByCustomer: number;
+  cancelledByDriver: number;
+};
 
-  const getAll = async () => {
+// Calculer les stats d'une liste de courses
+function computeBookingStats(courses: CourseProps[]): BookingStats {
+  let completed = 0;
+  let cancelled = 0;
+  let cancelledByCustomer = 0;
+  let cancelledByDriver = 0;
+  let processing = 0;
+  let totalRevenue = 0;
+  let totalCommission = 0;
+
+  for (const c of courses) {
+    const s = (c.status || "").toUpperCase().replace(/ /g, "_");
+    if (s === "DONE" || s === "COMPLETED") {
+      completed++;
+      totalRevenue += c.price || 0;
+      totalCommission += c.commission || 0;
+    } else if (s === "CANCELED_BY_CUSTOMER") {
+      cancelledByCustomer++;
+      cancelled++;
+    } else if (s === "CANCELED_BY_DRIVER") {
+      cancelledByDriver++;
+      cancelled++;
+    } else if (s === "CANCELED" || s === "CANCELLED") {
+      cancelled++;
+    } else if (s === "IN_PROGRESS" || s === "PROCESSING" || s === "PENDING" || s === "ACCEPTED") {
+      processing++;
+    }
+  }
+
+  return {
+    total: courses.length,
+    completed,
+    processing,
+    cancelled,
+    cancelledByCustomer,
+    cancelledByDriver,
+    totalRevenue,
+    totalCommission,
+    services: [],
+  };
+}
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashData>(initialData);
+  const [role, setRole] = useState<string | null>("");
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = async () => {
     try {
-      const res = await SERVICE_DASH.getDataDash();
-      setData(res.data);
-      console.log(res, "res");
+      setLoading(true);
+
+      // Appels en parallele : users depuis auth_service, courses depuis booking_service
+      const [dashRes, coursesRes] = await Promise.all([
+        SERVICE_DASH.getDataDash(),
+        SERVICE_COURSE.getAll(),
+      ]);
+
+      const allCourses = coursesRes.data || [];
+
+      // Bornes de dates
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+
+      const todayCourses = allCourses.filter(
+        (c) => new Date(c.created_at) >= todayStart
+      );
+      const monthCourses = allCourses.filter(
+        (c) => new Date(c.created_at) >= monthStart
+      );
+      const yearCourses = allCourses.filter(
+        (c) => new Date(c.created_at) >= yearStart
+      );
+
+      setData({
+        users: dashRes.data?.users || initialData.users,
+        bookings: {
+          today: computeBookingStats(todayCourses),
+          month: computeBookingStats(monthCourses),
+          year: computeBookingStats(yearCourses),
+          total: computeBookingStats(allCourses),
+        },
+      });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,8 +145,19 @@ export default function Dashboard() {
       const getRole = localStorage.getItem("role");
       setRole(getRole);
     }
-    getAll();
+    fetchAll();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-200"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-yellow-400 absolute top-0 left-0"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -87,7 +171,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div>
-          <div className="grid grid-cols-2 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-2">
+          <div className="grid grid-cols-3 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-3 max-xl:grid-cols-3">
             <CardDashmini
               h1="Courses Terminee"
               classname="text-black"
@@ -96,11 +180,18 @@ export default function Dashboard() {
               number={`${data?.bookings?.total.completed || 0}`}
             />
             <CardDashmini
-              h1="Courses annulees"
-              icon="line-md:cancel-twotone"
+              h1="Annulees par client"
+              icon="mdi:account-cancel"
               classname="text-black"
               bgColor="bg-gray-50"
-              number={`${data?.bookings?.total.cancelled || 0}`}
+              number={`${data?.bookings?.total.cancelledByCustomer || 0}`}
+            />
+            <CardDashmini
+              h1="Annulees par chauffeur"
+              icon="mdi:account-cancel"
+              classname="text-black"
+              bgColor="bg-gray-50"
+              number={`${data?.bookings?.total.cancelledByDriver || 0}`}
             />
           </div>
           <div className="grid grid-cols-5 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-3 max-2xl:grid-cols-3">
@@ -171,7 +262,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div>
-          <div className="grid grid-cols-2 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-2">
+          <div className="grid grid-cols-3 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-3 max-xl:grid-cols-3">
             <CardDashmini
               h1="Courses Terminee"
               classname="text-black"
@@ -180,11 +271,18 @@ export default function Dashboard() {
               number={`${data?.bookings?.today.completed || 0}`}
             />
             <CardDashmini
-              h1="Courses annulees"
-              icon="line-md:cancel-twotone"
+              h1="Annulees par client"
+              icon="mdi:account-cancel"
               classname="text-black"
               bgColor="bg-gray-50"
-              number={`${data?.bookings?.today.cancelled || 0}`}
+              number={`${data?.bookings?.today.cancelledByCustomer || 0}`}
+            />
+            <CardDashmini
+              h1="Annulees par chauffeur"
+              icon="mdi:account-cancel"
+              classname="text-black"
+              bgColor="bg-gray-50"
+              number={`${data?.bookings?.today.cancelledByDriver || 0}`}
             />
           </div>
           <div className="grid grid-cols-5 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-3 max-2xl:grid-cols-3">
@@ -255,7 +353,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div>
-          <div className="grid grid-cols-2 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-2">
+          <div className="grid grid-cols-3 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-3 max-xl:grid-cols-3">
             <CardDashmini
               h1="Courses Terminee"
               classname="text-black"
@@ -264,11 +362,18 @@ export default function Dashboard() {
               number={`${data?.bookings?.month.completed || 0}`}
             />
             <CardDashmini
-              h1="Courses annulees"
-              icon="line-md:cancel-twotone"
+              h1="Annulees par client"
+              icon="mdi:account-cancel"
               classname="text-black"
               bgColor="bg-gray-50"
-              number={`${data?.bookings?.month.cancelled || 0}`}
+              number={`${data?.bookings?.month.cancelledByCustomer || 0}`}
+            />
+            <CardDashmini
+              h1="Annulees par chauffeur"
+              icon="mdi:account-cancel"
+              classname="text-black"
+              bgColor="bg-gray-50"
+              number={`${data?.bookings?.month.cancelledByDriver || 0}`}
             />
           </div>
           <div className="grid grid-cols-5 gap-5 mt-5 mb-5 max-sm:grid-cols-1 max-md:grid-cols-1 max-lg:grid-cols-2 max-xl:grid-cols-3 max-2xl:grid-cols-3">
