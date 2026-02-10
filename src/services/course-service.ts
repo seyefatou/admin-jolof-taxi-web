@@ -42,6 +42,88 @@ export type CourseProps = {
   completed_at?: string;
 };
 
+// Types bruts de l'API
+type ApiCourse = {
+  id: number;
+  clientId: number;
+  client: {
+    id: number;
+    matricule: string;
+    name: string;
+    phone: string;
+    avatar?: string | null;
+    status?: string;
+    isOnline?: boolean;
+  };
+  driverId: number | null;
+  driver: {
+    id: number;
+    matricule: string;
+    name: string;
+    phone: string;
+    avatar?: string | null;
+    status?: string;
+    isOnline?: boolean;
+  } | null;
+  pickupLocation: LocationInfo;
+  dropOffLocation: LocationInfo;
+  status: string;
+  paymentMethodId: number | null;
+  paymentMethod: {
+    id: number;
+    name: string;
+    image?: string;
+    status?: boolean;
+  } | null;
+  totalPrice: number;
+  distanceKm: number;
+  durationMn: number;
+  additionalFees?: number | null;
+  raceStartTime?: string | null;
+  waitTimeMn?: number | null;
+  typeCar?: {
+    id: number;
+    type: string;
+    image?: string | null;
+    ratePrice: number;
+    priceMn: number;
+  };
+  created_at: string;
+};
+
+// Mapper API -> CourseProps
+const mapApiToCourse = (api: ApiCourse): CourseProps => ({
+  id: api.id,
+  code_booking: api.id.toString(),
+  customer: {
+    matricule: api.client?.matricule || "",
+    name: api.client?.name || "Inconnu",
+    phone: api.client?.phone || "",
+    avatar: api.client?.avatar || null,
+  },
+  driver: api.driver
+    ? {
+        matricule: api.driver.matricule || "",
+        name: api.driver.name || "Inconnu",
+        phone: api.driver.phone || "",
+        avatar: api.driver.avatar || null,
+      }
+    : null,
+  pickup_location: api.pickupLocation || { address: "", latitude: 0, longitude: 0 },
+  dropoff_location: api.dropOffLocation || { address: "", latitude: 0, longitude: 0 },
+  status: (api.status || "").replace(/ /g, "_"),
+  payment_method: api.paymentMethod
+    ? { id: api.paymentMethod.id, name: api.paymentMethod.name }
+    : null,
+  price: api.totalPrice || 0,
+  distance: api.distanceKm || 0,
+  duration: api.durationMn || 0,
+  commission: 0,
+  created_at: api.created_at,
+  updated_at: api.created_at,
+  started_at: api.raceStartTime || undefined,
+});
+
 type CourseListResponse = {
   message: string;
   status: number;
@@ -94,18 +176,43 @@ const getAll = async (params?: {
     queryParams.append("search", params.search);
   }
 
-  const res = await Axios.get<CourseListResponse>(
-    `booking_service/bookings?${queryParams.toString()}`
-  );
-  return res.data;
+  // 1. Premier appel pour recuperer le total
+  queryParams.append("take", "1");
+  const firstRes = await Axios.get(`booking_service/bookings?${queryParams.toString()}`);
+  const total = firstRes.data?.data?.total || 0;
+
+  // 2. Deuxieme appel pour recuperer TOUTES les courses
+  queryParams.set("take", total.toString());
+  const res = await Axios.get(`booking_service/bookings?${queryParams.toString()}`);
+
+  // Structure API: res.data = { message, status, data: { data: [...], pagination, total } }
+  const rawCourses = Array.isArray(res.data?.data?.data)
+    ? res.data.data.data
+    : [];
+
+  const mappedData: CourseProps[] = rawCourses.map(mapApiToCourse);
+
+  // Trier du plus recent au plus ancien
+  mappedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return {
+    message: res.data?.message || "",
+    status: res.data?.status || res.status,
+    data: mappedData,
+  };
 };
 
 // Details d'une course
-const getOne = async (codeBooking: string) => {
-  const res = await Axios.get<CourseOneResponse>(
-    `booking_service/bookings/${codeBooking}/detail`
+const getOne = async (courseId: string) => {
+  const res = await Axios.get<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/detail`
   );
-  return res.data;
+
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
 };
 
 // Statistiques des courses
@@ -117,61 +224,107 @@ const getStats = async () => {
 };
 
 // Annuler une course
-const cancel = async (codeBooking: string, reason: string) => {
-  const res = await Axios.put<CourseOneResponse>(
-    `booking_service/bookings/${codeBooking}/cancel`,
+const cancel = async (courseId: string, reason: string) => {
+  const res = await Axios.put<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/cancel`,
     { reason }
   );
-  return res.data;
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
 };
 
 // Assigner un chauffeur
-const assignDriver = async (codeBooking: string, driverMatricule: string) => {
-  const res = await Axios.put<CourseOneResponse>(
-    `booking_service/bookings/${codeBooking}/assign_driver`,
+const assignDriver = async (courseId: string, driverMatricule: string) => {
+  const res = await Axios.put<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/assign_driver`,
     { driver_matricule: driverMatricule }
   );
-  return res.data;
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
 };
 
 // Demarrer une course
-const startRide = async (codeBooking: string) => {
-  const res = await Axios.put<CourseOneResponse>(
-    `booking_service/bookings/${codeBooking}/start`
+const startRide = async (courseId: string) => {
+  const res = await Axios.put<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/start`
   );
-  return res.data;
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
 };
 
 // Terminer une course
-const completeRide = async (codeBooking: string) => {
-  const res = await Axios.put<CourseOneResponse>(
-    `booking_service/bookings/${codeBooking}/complete`
+const completeRide = async (courseId: string) => {
+  const res = await Axios.put<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/complete`
   );
-  return res.data;
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
+};
+
+// Helper pour extraire les courses depuis la reponse API (gere les 2 formats possibles)
+const extractCourses = (resData: any): ApiCourse[] => {
+  // Format pagine: { data: { data: [...], pagination, total } }
+  if (Array.isArray(resData?.data?.data)) return resData.data.data;
+  // Format simple: { data: [...] }
+  if (Array.isArray(resData?.data)) return resData.data;
+  return [];
 };
 
 // Courses d'un client
 const getByCustomer = async (customerMatricule: string) => {
-  const res = await Axios.get<CourseListResponse>(
+  const res = await Axios.get(
     `booking_service/bookings/customer/${customerMatricule}`
   );
-  return res.data;
+  const raw = extractCourses(res.data);
+  const mapped = raw.map(mapApiToCourse);
+  mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return {
+    message: res.data?.message || "",
+    status: res.data?.status || res.status,
+    data: mapped,
+  };
 };
 
 // Courses d'un chauffeur
 const getByDriver = async (driverMatricule: string) => {
-  const res = await Axios.get<CourseListResponse>(
+  const res = await Axios.get(
     `booking_service/bookings/driver/${driverMatricule}`
   );
-  return res.data;
+  const raw = extractCourses(res.data);
+  const mapped = raw.map(mapApiToCourse);
+  mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return {
+    message: res.data?.message || "",
+    status: res.data?.status || res.status,
+    data: mapped,
+  };
 };
 
 // Courses en cours (live)
 const getLive = async () => {
-  const res = await Axios.get<CourseListResponse>(
+  const res = await Axios.get(
     `booking_service/bookings/live`
   );
-  return res.data;
+  const raw = extractCourses(res.data);
+  const mapped = raw.map(mapApiToCourse);
+  mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return {
+    message: res.data?.message || "",
+    status: res.data?.status || res.status,
+    data: mapped,
+  };
 };
 
 export const SERVICE_COURSE = {
