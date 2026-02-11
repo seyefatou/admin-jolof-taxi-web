@@ -7,17 +7,16 @@ type ChangePasswordResponse = {
 };
 
 const changePassword = async (
+  identifier: string,
   password: string,
-  password_confirm: string,
-  token: string,
-  matricule: string,
-  token_expire: string
+  password_confirm: string
 ) => {
-  const res = await Axios.put<ChangePasswordResponse>(
-    `/admin/signin/forgetpassword/${token}/by/${matricule}/at/${token_expire}`,
+  const res = await Axios.post<ChangePasswordResponse>(
+    `/auth_service/auth/admin/signin/reset-password`,
     {
-      password_admin: password,
-      password_admin_confirm: password_confirm,
+      identifier,
+      password,
+      password_confirm,
     }
   );
   return res.data;

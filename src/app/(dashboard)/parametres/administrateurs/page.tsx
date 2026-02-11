@@ -162,7 +162,9 @@ export default function AdministrateursPage() {
       const phone = telephone.startsWith("+221") ? telephone : `+221${telephone}`;
       const res = await SERVICE_ADMINISTRATEUR.create(nom, email, phone, adresse);
       if (res.status === 200) {
-        toast.success("Administrateur cree avec succes");
+        toast.success(`Administrateur cree avec succes. Un email a ete envoye a ${email} pour definir son mot de passe.`, {
+          autoClose: 8000,
+        });
         setModalAdd(false);
         resetForm();
         loadAdmins();

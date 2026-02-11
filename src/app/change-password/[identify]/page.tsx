@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import InputPassword from "@/components/inputs/input-password";
 import BtnPrimary from "@/components/buttons/btn-primary";
 import { SERVICE_UPDATE_PASSWORD } from "@/services/change-password";
@@ -17,6 +18,8 @@ export default function ChangePassword() {
   const [loading, setLoading] = useState<boolean>(false);
   const [modal, setModal] = useState<boolean>(false);
   const router = useRouter();
+  const params = useParams<{ identify: string }>();
+  const identify = decodeURIComponent(params.identify);
   const [password, setPassword] = useState<string>("");
   const [passwordConfirm, setPasswordConfirm] = useState<string>("");
 
@@ -31,25 +34,14 @@ export default function ChangePassword() {
   const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const code = localStorage.getItem("code");
-      const code_expire = localStorage.getItem("code_expiration");
-      const matricule = localStorage.getItem("matricule");
-
-      if (code && code_expire && matricule) {
-        setLoading(true);
-        const res = await SERVICE_UPDATE_PASSWORD.changePassword(
-          password,
-          passwordConfirm,
-          code,
-          matricule,
-          code_expire
-        );
-        if (res.success) {
-          localStorage.removeItem("matricule");
-          localStorage.removeItem("code_expiration");
-          localStorage.removeItem("code");
-          setModal(true);
-        }
+      setLoading(true);
+      const res = await SERVICE_UPDATE_PASSWORD.changePassword(
+        identify,
+        password,
+        passwordConfirm
+      );
+      if (res.success) {
+        setModal(true);
       }
     } catch (error: any) {
       console.log(error);

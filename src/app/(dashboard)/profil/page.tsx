@@ -17,6 +17,16 @@ export default function ProfilPage() {
   const [address, setAddress] = useState("");
   const [role, setRole] = useState("");
 
+  // Change password state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submittingPassword, setSubmittingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const loadProfile = async () => {
     try {
       setLoading(true);
@@ -66,6 +76,33 @@ export default function ProfilPage() {
       toast.error(error.response?.data?.message || "Erreur lors de la mise a jour");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    try {
+      setSubmittingPassword(true);
+      const res = await SERVICE_LOGIN.changePassword(oldPassword, newPassword, confirmPassword);
+      if (res.status === 200) {
+        toast.success("Mot de passe modifie avec succes");
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setShowPasswordForm(false);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors du changement de mot de passe");
+    } finally {
+      setSubmittingPassword(false);
     }
   };
 
@@ -238,6 +275,122 @@ export default function ProfilPage() {
             </div>
           )}
         </div>
+      </div>
+      {/* Change Password Section */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden mt-6">
+        <div className="p-4 flex items-center justify-between bg-gray-50 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800">
+            <Icon icon="mdi:lock-reset" className="inline mr-2" />
+            Changer le mot de passe
+          </h2>
+          {!showPasswordForm && (
+            <button
+              onClick={() => setShowPasswordForm(true)}
+              className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
+            >
+              <Icon icon="mdi:pencil" className="inline mr-1" />
+              Modifier
+            </button>
+          )}
+        </div>
+
+        {showPasswordForm && (
+          <form onSubmit={handleChangePassword} className="p-8 space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mot de passe actuel
+              </label>
+              <div className="relative">
+                <input
+                  type={showOldPassword ? "text" : "password"}
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  placeholder="Entrez votre mot de passe actuel"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowOldPassword(!showOldPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <Icon icon={showOldPassword ? "mdi:eye-off" : "mdi:eye"} className="text-xl" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nouveau mot de passe
+              </label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  placeholder="Entrez votre nouveau mot de passe"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <Icon icon={showNewPassword ? "mdi:eye-off" : "mdi:eye"} className="text-xl" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirmer le nouveau mot de passe
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300"
+                  placeholder="Confirmez votre nouveau mot de passe"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <Icon icon={showConfirmPassword ? "mdi:eye-off" : "mdi:eye"} className="text-xl" />
+                </button>
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-400 space-y-1">
+              <p>Doit contenir au moins :</p>
+              <p>- Minimum <span className="text-yellow-500 font-medium">8 caracteres</span></p>
+              <p>- Lettres <span className="text-yellow-500 font-medium">minuscules</span> (a-z)</p>
+              <p>- Lettres <span className="text-yellow-500 font-medium">majuscules</span> (A-Z)</p>
+              <p>- Des <span className="text-yellow-500 font-medium">nombres</span> (0-9)</p>
+            </div>
+
+            <div className="flex justify-end gap-4 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(false);
+                  setOldPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={submittingPassword}
+                className="px-6 py-3 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
+              >
+                {submittingPassword ? "Enregistrement..." : "Changer le mot de passe"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

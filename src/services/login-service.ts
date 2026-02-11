@@ -106,6 +106,19 @@ const getinfoConnectUser = async () => {
   }
 };
 
+const changePassword = async (
+  old_password: string,
+  password: string,
+  password_confirm: string
+) => {
+  const res = await Axios.put("auth_service/auth/admin/me/update_password", {
+    old_password,
+    password,
+    password_confirm,
+  });
+  return res;
+};
+
 export const SERVICE_LOGIN = {
   saveToken,
   refreshToken,
@@ -114,4 +127,5 @@ export const SERVICE_LOGIN = {
   IsLogout,
   getinfoConnectUser,
   infoConnectUserUpdate,
+  changePassword,
 };
