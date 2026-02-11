@@ -201,7 +201,9 @@ export default function ChauffeurFormModal({
     isEditMode ||
     (permitRecto !== null &&
       permitVerso !== null &&
-      (!hasVehicle || (carRegRecto !== null && carRegVerso !== null && booklet !== null)));
+      carRegRecto !== null &&
+      carRegVerso !== null &&
+      booklet !== null);
 
   const isFormValid = isPersonalInfoValid && isVehicleInfoValid && isDocumentsValid;
 
@@ -254,26 +256,26 @@ export default function ChauffeurFormModal({
         submitFormData.append("keep_existing_file_permit_verso", "true");
       }
 
-      // Fichiers - Documents vehicule
-      if (hasVehicle) {
-        if (carRegRecto) {
-          const compressed = await compressImage(carRegRecto);
-          submitFormData.append("file_car_registration_recto", compressed);
-        } else if (isEditMode && existingCarRegRecto) {
-          submitFormData.append("keep_existing_file_car_registration_recto", "true");
-        }
-        if (carRegVerso) {
-          const compressed = await compressImage(carRegVerso);
-          submitFormData.append("file_car_registration_verso", compressed);
-        } else if (isEditMode && existingCarRegVerso) {
-          submitFormData.append("keep_existing_file_car_registration_verso", "true");
-        }
-        if (booklet) {
-          const compressed = await compressImage(booklet);
-          submitFormData.append("file_booklet", compressed);
-        } else if (isEditMode && existingBooklet) {
-          submitFormData.append("keep_existing_file_booklet", "true");
-        }
+      // Fichiers - Carte grise
+      if (carRegRecto) {
+        const compressed = await compressImage(carRegRecto);
+        submitFormData.append("file_car_registration_recto", compressed);
+      } else if (isEditMode && existingCarRegRecto) {
+        submitFormData.append("keep_existing_file_car_registration_recto", "true");
+      }
+      if (carRegVerso) {
+        const compressed = await compressImage(carRegVerso);
+        submitFormData.append("file_car_registration_verso", compressed);
+      } else if (isEditMode && existingCarRegVerso) {
+        submitFormData.append("keep_existing_file_car_registration_verso", "true");
+      }
+
+      // Fichiers - Livret
+      if (booklet) {
+        const compressed = await compressImage(booklet);
+        submitFormData.append("file_booklet", compressed);
+      } else if (isEditMode && existingBooklet) {
+        submitFormData.append("keep_existing_file_booklet", "true");
       }
 
       await onSubmit(submitFormData);
@@ -636,27 +638,24 @@ export default function ChauffeurFormModal({
             </div>
           </div>
 
-          {/* Documents - Vehicle docs (if hasVehicle) */}
-          {hasVehicle && (
-            <>
-              <div className="border border-gray-300 rounded-xl p-4 mb-4">
-                <h3 className="text-sm font-bold text-gray-500 mb-3">
-                  Carte Grise {isEditMode ? "" : "*"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" existingImageUrl={existingCarRegRecto} />
-                  <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" existingImageUrl={existingCarRegVerso} />
-                </div>
-              </div>
+          {/* Documents - Carte Grise */}
+          <div className="border border-gray-300 rounded-xl p-4 mb-4">
+            <h3 className="text-sm font-bold text-gray-500 mb-3">
+              Carte Grise {isEditMode ? "" : "*"}
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" existingImageUrl={existingCarRegRecto} />
+              <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" existingImageUrl={existingCarRegVerso} />
+            </div>
+          </div>
 
-              <div className="border border-gray-300 rounded-xl p-4 mb-4">
-                <h3 className="text-sm font-bold text-gray-500 mb-3">
-                  Livret {isEditMode ? "" : "*"}
-                </h3>
-                <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" existingImageUrl={existingBooklet} />
-              </div>
-            </>
-          )}
+          {/* Documents - Livret */}
+          <div className="border border-gray-300 rounded-xl p-4 mb-4">
+            <h3 className="text-sm font-bold text-gray-500 mb-3">
+              Livret {isEditMode ? "" : "*"}
+            </h3>
+            <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" existingImageUrl={existingBooklet} />
+          </div>
 
           {/* Documents Valid Indicator */}
           <div className="flex items-center gap-2 mb-4">
