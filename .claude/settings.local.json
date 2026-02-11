@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" branch -a)",
+      "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" remote -v)",
+      "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" log production --oneline -5)"
+    ]
+  }
+}
