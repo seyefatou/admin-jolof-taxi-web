@@ -91,6 +91,7 @@ export default function ChauffeurFormModal({
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
+    email: "",
     gender: "Homme",
     address: "",
     latitude: 0,
@@ -121,12 +122,41 @@ export default function ChauffeurFormModal({
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset form when modal opens/closes
+  // Reset form or populate with chauffeur data when modal opens
   useEffect(() => {
-    if (isOpen && !chauffeur) {
+    if (isOpen && chauffeur) {
+      // Mode edition: pre-remplir avec les donnees existantes
+      setFormData({
+        fullName: chauffeur.name || "",
+        phone: chauffeur.phone?.replace(/^\+221/, "") || "",
+        email: chauffeur.email || "",
+        gender: "Homme",
+        address: "",
+        latitude: 0,
+        longitude: 0,
+      });
+      setHasGarage(!!chauffeur.garageAffiliation);
+      setSelectedGarageId(chauffeur.garageAffiliation?.id?.toString() || "");
+      setHasVehicle(!!chauffeur.vehicule);
+      setVehicleData({
+        brand: chauffeur.vehicule?.brand || "",
+        model: chauffeur.vehicule?.model || "",
+        year: chauffeur.vehicule?.year?.toString() || "",
+        typeService: chauffeur.vehicule?.type || "",
+        licensePlate: chauffeur.vehicule?.licensePlateNumber || "",
+        licenseNumber: chauffeur.vehicule?.licenseNumber || "",
+      });
+      setPermitRecto(null);
+      setPermitVerso(null);
+      setCarRegRecto(null);
+      setCarRegVerso(null);
+      setBooklet(null);
+    } else if (isOpen && !chauffeur) {
+      // Mode creation: reinitialiser le formulaire
       setFormData({
         fullName: "",
         phone: "",
+        email: "",
         gender: "Homme",
         address: "",
         latitude: 0,
@@ -168,9 +198,10 @@ export default function ChauffeurFormModal({
       vehicleData.licenseNumber !== "");
 
   const isDocumentsValid =
-    permitRecto !== null &&
-    permitVerso !== null &&
-    (!hasVehicle || (carRegRecto !== null && carRegVerso !== null && booklet !== null));
+    isEditMode ||
+    (permitRecto !== null &&
+      permitVerso !== null &&
+      (!hasVehicle || (carRegRecto !== null && carRegVerso !== null && booklet !== null)));
 
   const isFormValid = isPersonalInfoValid && isVehicleInfoValid && isDocumentsValid;
 
@@ -185,6 +216,9 @@ export default function ChauffeurFormModal({
       // Personal info
       submitFormData.append("fullName", formData.fullName);
       submitFormData.append("phone", `+221${formData.phone.replace(/^\+221/, "")}`);
+      if (formData.email) {
+        submitFormData.append("email", formData.email);
+      }
       submitFormData.append("gender", formData.gender);
       submitFormData.append("address", formData.address);
       submitFormData.append("latitude", formData.latitude.toString());
@@ -206,30 +240,39 @@ export default function ChauffeurFormModal({
         submitFormData.append("licenseNumber", vehicleData.licenseNumber);
       }
 
-      // Compresser et ajouter les fichiers
-      // Files - Permit (required)
+      // Fichiers - Permis de conduire
       if (permitRecto) {
         const compressed = await compressImage(permitRecto);
         submitFormData.append("file_permit_recto", compressed);
+      } else if (isEditMode && existingPermitRecto) {
+        submitFormData.append("keep_existing_file_permit_recto", "true");
       }
       if (permitVerso) {
         const compressed = await compressImage(permitVerso);
         submitFormData.append("file_permit_verso", compressed);
+      } else if (isEditMode && existingPermitVerso) {
+        submitFormData.append("keep_existing_file_permit_verso", "true");
       }
 
-      // Files - Vehicle docs (if hasVehicle)
+      // Fichiers - Documents vehicule
       if (hasVehicle) {
         if (carRegRecto) {
           const compressed = await compressImage(carRegRecto);
           submitFormData.append("file_car_registration_recto", compressed);
+        } else if (isEditMode && existingCarRegRecto) {
+          submitFormData.append("keep_existing_file_car_registration_recto", "true");
         }
         if (carRegVerso) {
           const compressed = await compressImage(carRegVerso);
           submitFormData.append("file_car_registration_verso", compressed);
+        } else if (isEditMode && existingCarRegVerso) {
+          submitFormData.append("keep_existing_file_car_registration_verso", "true");
         }
         if (booklet) {
           const compressed = await compressImage(booklet);
           submitFormData.append("file_booklet", compressed);
+        } else if (isEditMode && existingBooklet) {
+          submitFormData.append("keep_existing_file_booklet", "true");
         }
       }
 
@@ -245,23 +288,55 @@ export default function ChauffeurFormModal({
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  // Extraire les URLs des documents existants du chauffeur
+  const getExistingDocUrl = (keywords: string[], imageType: "front" | "back"): string | null => {
+    if (!chauffeur?.driverDocument) return null;
+    const doc = chauffeur.driverDocument.find((d) => {
+      const title = d.DocumentType?.title?.toLowerCase() || "";
+      return keywords.some((kw) => title.includes(kw.toLowerCase()));
+    });
+    if (!doc) return null;
+    return imageType === "front" ? doc.frontImage : doc.backImage;
+  };
+
+  // Log les documents pour debug
+  useEffect(() => {
+    if (isOpen && chauffeur?.driverDocument) {
+      console.log("Documents du chauffeur:", chauffeur.driverDocument.map((d) => ({
+        id: d.id,
+        type: d.DocumentType?.title,
+        typeId: d.documentTypeId,
+        front: d.frontImage ? "oui" : "non",
+        back: d.backImage ? "oui" : "non",
+      })));
+    }
+  }, [isOpen, chauffeur]);
+
+  const existingPermitRecto = getExistingDocUrl(["permis", "permit", "driving", "licence", "license"], "front");
+  const existingPermitVerso = getExistingDocUrl(["permis", "permit", "driving", "licence", "license"], "back");
+  const existingCarRegRecto = getExistingDocUrl(["carte grise", "carte_grise", "registration", "grise", "immatriculation"], "front");
+  const existingCarRegVerso = getExistingDocUrl(["carte grise", "carte_grise", "registration", "grise", "immatriculation"], "back");
+  const existingBooklet = getExistingDocUrl(["livret", "booklet", "carnet"], "front");
+
   const FileUploadBox = ({
     label,
     file,
     setFile,
     side,
+    existingImageUrl,
   }: {
     label: string;
     file: File | null;
     setFile: (f: File | null) => void;
     side: string;
+    existingImageUrl?: string | null;
   }) => {
     const maxSize = 5 * 1024 * 1024; // 5MB max
     const isTooBig = file && file.size > maxSize;
 
     return (
       <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${
-        isTooBig ? "border-red-400 bg-red-50" : file ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-yellow-400"
+        isTooBig ? "border-red-400 bg-red-50" : file ? "border-green-400 bg-green-50" : existingImageUrl ? "border-blue-300 bg-blue-50" : "border-gray-300 hover:border-yellow-400"
       }`}>
         <input
           type="file"
@@ -281,6 +356,19 @@ export default function ChauffeurFormModal({
                 {formatFileSize(file.size)}
                 {isTooBig && " (trop gros, sera compresse)"}
               </span>
+            </div>
+          ) : existingImageUrl ? (
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src={existingImageUrl}
+                alt={side}
+                className="w-20 h-16 object-cover rounded-lg border border-blue-200"
+              />
+              <div className="flex items-center gap-1 text-blue-600">
+                <Icon icon="mdi:image-check" className="text-sm" />
+                <span className="text-xs font-medium">Document actuel</span>
+              </div>
+              <span className="text-[10px] text-gray-400">Cliquer pour remplacer</span>
             </div>
           ) : (
             <div className="text-gray-500">
@@ -352,6 +440,17 @@ export default function ChauffeurFormModal({
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, "") })}
                   placeholder="7X XXX XX XX *"
                   className="w-full pl-14 pr-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                />
+              </div>
+
+              {/* Email */}
+              <div className="col-span-2">
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Email (optionnel)"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
                 />
               </div>
 
@@ -528,10 +627,12 @@ export default function ChauffeurFormModal({
 
           {/* Documents - Permis de conduire (required) */}
           <div className="border border-gray-300 rounded-xl p-4 mb-4">
-            <h3 className="text-sm font-bold text-gray-500 mb-3">Permis de conduire *</h3>
+            <h3 className="text-sm font-bold text-gray-500 mb-3">
+              Permis de conduire {isEditMode ? "" : "*"}
+            </h3>
             <div className="grid grid-cols-2 gap-4">
-              <FileUploadBox label="permit" file={permitRecto} setFile={setPermitRecto} side="Recto" />
-              <FileUploadBox label="permit" file={permitVerso} setFile={setPermitVerso} side="Verso" />
+              <FileUploadBox label="permit" file={permitRecto} setFile={setPermitRecto} side="Recto" existingImageUrl={existingPermitRecto} />
+              <FileUploadBox label="permit" file={permitVerso} setFile={setPermitVerso} side="Verso" existingImageUrl={existingPermitVerso} />
             </div>
           </div>
 
@@ -539,16 +640,20 @@ export default function ChauffeurFormModal({
           {hasVehicle && (
             <>
               <div className="border border-gray-300 rounded-xl p-4 mb-4">
-                <h3 className="text-sm font-bold text-gray-500 mb-3">Carte Grise *</h3>
+                <h3 className="text-sm font-bold text-gray-500 mb-3">
+                  Carte Grise {isEditMode ? "" : "*"}
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" />
-                  <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" />
+                  <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" existingImageUrl={existingCarRegRecto} />
+                  <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" existingImageUrl={existingCarRegVerso} />
                 </div>
               </div>
 
               <div className="border border-gray-300 rounded-xl p-4 mb-4">
-                <h3 className="text-sm font-bold text-gray-500 mb-3">Livret *</h3>
-                <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" />
+                <h3 className="text-sm font-bold text-gray-500 mb-3">
+                  Livret {isEditMode ? "" : "*"}
+                </h3>
+                <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" existingImageUrl={existingBooklet} />
               </div>
             </>
           )}

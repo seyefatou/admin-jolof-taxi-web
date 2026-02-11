@@ -181,10 +181,21 @@ export default function ChauffeursList() {
     setShowFormModal(true);
   };
 
-  const handleEditChauffeur = (chauffeur: ChauffeurProps) => {
-    setSelectedChauffeur(chauffeur);
-    setShowFormModal(true);
+  const handleEditChauffeur = async (chauffeur: ChauffeurProps) => {
     setOpenMenuId(null);
+    try {
+      // Recuperer les details complets du chauffeur (avec documents)
+      const res = await SERVICE_CHAUFFEUR.getOne(chauffeur.matricule);
+      if (res.data) {
+        setSelectedChauffeur(res.data);
+      } else {
+        setSelectedChauffeur(chauffeur);
+      }
+    } catch {
+      // Fallback sur les donnees de la liste
+      setSelectedChauffeur(chauffeur);
+    }
+    setShowFormModal(true);
   };
 
   const handleViewDetails = (chauffeur: ChauffeurProps) => {
@@ -193,13 +204,14 @@ export default function ChauffeursList() {
   };
 
   const handleFormSubmit = async (formData: FormData) => {
+    const isUpdate = formData.has("matricule");
     try {
-      console.log("Envoi du formulaire chauffeur...");
+      console.log("Envoi du formulaire chauffeur...", isUpdate ? "modification" : "creation");
       const res = await SERVICE_CHAUFFEUR.create(formData);
       console.log("Reponse:", res);
 
       if (res.status === 200 || res.status === 201) {
-        toast.success("Chauffeur ajoute avec succes");
+        toast.success(isUpdate ? "Chauffeur modifie avec succes" : "Chauffeur ajoute avec succes");
         setShowFormModal(false);
         loadData();
       } else if (res.status === 409) {
@@ -712,7 +724,16 @@ export default function ChauffeursList() {
       <ChauffeurFormModal
         isOpen={showFormModal}
         onClose={() => setShowFormModal(false)}
-        onSubmit={handleFormSubmit}
+        onSubmit={async (formData) => {
+          if (selectedChauffeur) {
+            // Mode edition: meme endpoint que creation (POST) avec matricule
+            formData.append("matricule", selectedChauffeur.matricule);
+            if (selectedChauffeur.vehicule?.id) {
+              formData.append("vehiculeId", selectedChauffeur.vehicule.id.toString());
+            }
+          }
+          await handleFormSubmit(formData);
+        }}
         chauffeur={selectedChauffeur}
         garages={garages}
         vehicleTypes={vehicleTypes}

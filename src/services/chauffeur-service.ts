@@ -205,15 +205,14 @@ const ban = async (matricule: string) => {
   return res.data;
 };
 
-// Créer un chauffeur
+// Créer ou modifier un chauffeur (si matricule present dans le FormData, c'est une modification)
 const create = async (formData: FormData) => {
-  // Supprimer le Content-Type par défaut pour que Axios définisse automatiquement multipart/form-data avec boundary
   const res = await Axios.post<ChauffeurOneResponse>(
     `auth_service/users/drivers/registration`,
     formData,
     {
       headers: {
-        "Content-Type": undefined,
+        "Content-Type": "multipart/form-data",
       },
     }
   );
@@ -222,9 +221,13 @@ const create = async (formData: FormData) => {
 
 // Modifier un chauffeur
 const update = async (data: UpdateChauffeurData) => {
+  // Supprimer les champs undefined pour eviter les erreurs backend
+  const body = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined && v !== null)
+  );
   const res = await Axios.put<ChauffeurOneResponse>(
     `auth_service/users/drivers/registration`,
-    data
+    body
   );
   return res.data;
 };
