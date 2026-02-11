@@ -37,11 +37,6 @@ type TransactionListResponse = {
 const getAll = async () => {
   const res = await Axios.get(`payment_service/transactions`);
 
-  console.log("=== DEBUG TRANSACTIONS API ===");
-  console.log("res.status:", res.status);
-  console.log("res.data type:", typeof res.data);
-  console.log("res.data:", JSON.stringify(res.data).slice(0, 500));
-
   // API can return: direct array, { data: [...] }, or { data: { data: [...] } }
   let rawData: unknown[];
   if (Array.isArray(res.data)) {
