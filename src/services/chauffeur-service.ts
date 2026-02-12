@@ -93,6 +93,24 @@ export type UpdateChauffeurData = {
   garageId?: number;
 };
 
+export type TrackingDriver = {
+  name: string;
+  phone: string;
+  matricule: string;
+  latitude: number | null;
+  longitude: number | null;
+  vehicule: VehicleInfo[];
+};
+
+type TrackingResponse = {
+  message: string;
+  status: number;
+  data: {
+    total: number;
+    drivers: TrackingDriver[];
+  };
+};
+
 type ChauffeurListResponse = {
   message: string;
   status: number;
@@ -157,14 +175,10 @@ const search = async (recherche: string) => {
 
 // Chauffeurs en ligne (live tracking)
 const getLiveTracking = async () => {
-  const res = await Axios.get<ChauffeurListResponse>(
+  const res = await Axios.get<TrackingResponse>(
     `auth_service/users/drivers/live_tracking`
   );
-  const mappedData = res.data.data?.map(mapChauffeurData) || [];
-  return {
-    ...res.data,
-    data: mappedData,
-  };
+  return res.data;
 };
 
 // Détails d'un chauffeur
