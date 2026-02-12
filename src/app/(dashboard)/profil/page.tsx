@@ -5,12 +5,14 @@ import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_LOGIN } from "@/services/login-service";
+import { SERVICE_ADMINISTRATEUR } from "@/services/administrateur-service";
 
 export default function ProfilPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [matricule, setMatricule] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,6 +35,8 @@ export default function ProfilPage() {
       const res = await SERVICE_LOGIN.getinfoConnectUser();
       if (res.status === 200) {
         const user = res.data.data;
+        const mat = user.matricule || localStorage.getItem("matricule") || "";
+        setMatricule(mat);
         setName(user.name || "");
         setEmail(user.email || "");
         setPhone(user.phone?.replace("+221", "") || "");
@@ -40,9 +44,11 @@ export default function ProfilPage() {
         setRole(user.role?.nameRole || "");
       }
     } catch (error) {
+      const storedMatricule = localStorage.getItem("matricule");
       const storedName = localStorage.getItem("name");
       const storedEmail = localStorage.getItem("email");
       const storedRole = localStorage.getItem("role");
+      if (storedMatricule) setMatricule(storedMatricule);
       if (storedName) setName(storedName);
       if (storedEmail) setEmail(storedEmail);
       if (storedRole) setRole(storedRole);
@@ -65,12 +71,13 @@ export default function ProfilPage() {
     try {
       setSubmitting(true);
       const phoneFormatted = phone.startsWith("+221") ? phone : `+221${phone}`;
-      const res = await SERVICE_LOGIN.infoConnectUserUpdate(name, email, phoneFormatted, address);
+      const res = await SERVICE_ADMINISTRATEUR.update(matricule, name, email, phoneFormatted, address);
       if (res.status === 200) {
         toast.success("Profil mis a jour avec succes");
         localStorage.setItem("name", name);
         localStorage.setItem("email", email);
         setEditing(false);
+        await loadProfile();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de la mise a jour");

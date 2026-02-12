@@ -36,6 +36,18 @@ const transactionStatusConfig: Record<string, { bg: string; text: string; icon: 
     icon: "mdi:check-circle",
     label: "Succes",
   },
+  succeeded: {
+    bg: "bg-gradient-to-r from-green-100 to-emerald-100 border-green-200",
+    text: "text-green-700",
+    icon: "mdi:check-circle",
+    label: "Succes",
+  },
+  SUCCEEDED: {
+    bg: "bg-gradient-to-r from-green-100 to-emerald-100 border-green-200",
+    text: "text-green-700",
+    icon: "mdi:check-circle",
+    label: "Succes",
+  },
   pending: {
     bg: "bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-200",
     text: "text-yellow-700",
@@ -167,8 +179,9 @@ export default function FinancePage() {
 
     const matchType =
       typeFilter === "ALL" || t.type?.toLowerCase() === typeFilter.toLowerCase();
+    const normalizedStatus = t.status?.toLowerCase() === "succeeded" ? "success" : t.status?.toLowerCase();
     const matchStatus =
-      statusFilter === "ALL" || t.status?.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "ALL" || normalizedStatus === statusFilter.toLowerCase();
 
     return matchSearch && matchType && matchStatus;
   });

@@ -54,6 +54,7 @@ export default function Login() {
           localStorage.setItem("role", role.nom);
           localStorage.setItem("email", email);
           localStorage.setItem("tel", tel);
+          localStorage.setItem("matricule", user.data.matricule || "");
 
           if (remember) {
             localStorage.setItem("password", password);
