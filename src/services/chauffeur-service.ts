@@ -93,6 +93,8 @@ export type UpdateChauffeurData = {
   garageId?: number;
 };
 
+export type ConnectionQuality = "GOOD" | "POOR" | "DISCONNECTED";
+
 export type TrackingDriver = {
   name: string;
   phone: string;
@@ -100,6 +102,11 @@ export type TrackingDriver = {
   latitude: number | null;
   longitude: number | null;
   vehicule: VehicleInfo[];
+  connectionQuality: ConnectionQuality | null;
+  lastHeartbeat: string | null;
+  avatar: string | null;
+  rating: number | null;
+  isOnline: boolean;
 };
 
 type TrackingResponse = {
