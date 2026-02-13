@@ -191,6 +191,13 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
       icon: "mdi:finance",
       isActive: isPathActive(`/finance`),
     },
+    {
+      path: `/settings`,
+      text: "Parametres",
+      subText: "Configuration systeme",
+      icon: "mdi:cog",
+      isActive: isPathActive(`/settings`),
+    },
   ];
 
   const mainMenuItem2: MenuItem[] = [

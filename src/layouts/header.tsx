@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({ menuPetit, setMenuPetit }) => {
                 <button
                   onClick={() => {
                     setIsProfileOpen(false);
-                    router.push("/parametres/administrateurs");
+                    router.push("/settings");
                   }}
                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-yellow-100"
                 >

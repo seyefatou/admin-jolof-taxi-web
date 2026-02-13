@@ -3,6 +3,7 @@ import Axios from "./caller";
 export type PaiementProps = {
   id: number;
   name: string;
+  image: string | null;
   status: boolean;
 };
 
@@ -54,9 +55,23 @@ const update = async (name: string, id: number, status: boolean) => {
   return res.data;
 };
 
+const uploadImage = async (id: number, formData: FormData) => {
+  const res = await Axios.put(
+    `payment_service/paymentMethods/${id}/upload_image`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return res.data;
+};
+
 export const SERVICE_PAIEMENT = {
   getAll,
   getOne,
   create,
   update,
+  uploadImage,
 };

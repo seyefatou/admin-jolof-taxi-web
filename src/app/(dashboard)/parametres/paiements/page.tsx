@@ -22,6 +22,7 @@ export default function PaiementsPage() {
   const [nomPaiement, setNomPaiement] = useState("");
   const [editId, setEditId] = useState<number>(0);
   const [editStatus, setEditStatus] = useState(true);
+  const [uploadingImageId, setUploadingImageId] = useState<number | null>(null);
 
   // Hook pour les popups d'erreur
   const { errorPopup, showWarning, closePopup, handleApiError } = useErrorPopup();
@@ -103,6 +104,21 @@ export default function PaiementsPage() {
       handleApiError(error, "Erreur lors de la modification du mode de paiement");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = async (id: number, file: File) => {
+    try {
+      setUploadingImageId(id);
+      const fd = new FormData();
+      fd.append("image", file);
+      await SERVICE_PAIEMENT.uploadImage(id, fd);
+      toast.success("Image mise a jour avec succes");
+      await loadPaiements();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Erreur lors de l'upload de l'image");
+    } finally {
+      setUploadingImageId(null);
     }
   };
 
@@ -298,6 +314,7 @@ export default function PaiementsPage() {
         {paiements.length > 0 ? (
           paiements.map((paiement, index) => {
             const colors = getPaymentColor(paiement.name);
+            const isUploading = uploadingImageId === paiement.id;
             return (
               <div
                 key={paiement.id}
@@ -313,8 +330,35 @@ export default function PaiementsPage() {
                 <div className="relative p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 ${colors.icon} rounded-2xl flex items-center justify-center shadow-lg`}>
-                        <Icon icon={getPaymentIcon(paiement.name)} className="text-2xl text-white" />
+                      {/* Image ou icone avec upload au survol */}
+                      <div className="relative group/img">
+                        {paiement.image ? (
+                          <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white shadow-lg">
+                            <img src={paiement.image} alt={paiement.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-14 h-14 ${colors.icon} rounded-2xl flex items-center justify-center shadow-lg`}>
+                            <Icon icon={getPaymentIcon(paiement.name)} className="text-2xl text-white" />
+                          </div>
+                        )}
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer">
+                          {isUploading ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                          ) : (
+                            <Icon icon="mdi:camera-plus" className="text-xl text-white" />
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isUploading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(paiement.id, file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-800 text-lg">{paiement.name}</h3>
