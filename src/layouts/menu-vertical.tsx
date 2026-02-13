@@ -164,27 +164,6 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
       isActive: isPathActive(`/parametres/vehicules`),
     },
     {
-      path: `/parametres/roles`,
-      text: "Roles",
-      subText: "Gestion des permissions",
-      icon: "mdi:shield-account",
-      isActive: isPathActive(`/parametres/roles`),
-    },
-    {
-      path: `/parametres/paiements`,
-      text: "Paiements",
-      subText: "Modes de paiement",
-      icon: "mdi:credit-card",
-      isActive: isPathActive(`/parametres/paiements`),
-    },
-    {
-      path: `/parametres/administrateurs`,
-      text: "Administrateurs",
-      subText: "Gestion des admins",
-      icon: "mdi:account-tie",
-      isActive: isPathActive(`/parametres/administrateurs`),
-    },
-    {
       path: `/finance`,
       text: "Finance",
       subText: "Rapports financiers",
@@ -201,13 +180,6 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
   ];
 
   const mainMenuItem2: MenuItem[] = [
-    {
-      path: `/service-courses`,
-      text: "Service Courses",
-      subText: "Gestion des services",
-      icon: "ic:round-miscellaneous-services",
-      isActive: isPathActive(`/service-courses`),
-    },
     {
       path: `/profil`,
       text: "Mon Profil",
