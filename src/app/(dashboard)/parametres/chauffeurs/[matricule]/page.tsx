@@ -958,6 +958,109 @@ export default function ChauffeurDetails() {
         </div>
       </div>
 
+      {/* Historique des courses */}
+      <div className="px-6 mt-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Icon icon="mdi:history" className="text-yellow-400" />
+              Historique des courses ({driverCourses.length})
+            </h3>
+          </div>
+
+          {coursesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-300 border-t-gray-600"></div>
+            </div>
+          ) : driverCourses.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-200">
+                    <th className="px-6 py-3">Course</th>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Trajet</th>
+                    <th className="px-6 py-3">Statut</th>
+                    <th className="px-6 py-3">Prix</th>
+                    <th className="px-6 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {driverCourses.map((course) => {
+                    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+                      DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
+                      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
+                      IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
+                      CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
+                      CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
+                      CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
+                    };
+                    const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
+
+                    return (
+                      <tr
+                        key={course.id}
+                        onClick={() => router.push(`/reservations/reservations/${course.code_booking}`)}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-semibold text-gray-800">#{course.code_booking}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 text-xs font-bold">
+                              {course.customer.name?.charAt(0) || "?"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{course.customer.name}</p>
+                              <p className="text-xs text-gray-400">{course.customer.phone}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs text-gray-600 max-w-[200px]">
+                            <p className="truncate flex items-center gap-1">
+                              <Icon icon="mdi:map-marker" className="text-green-500 flex-shrink-0" />
+                              {course.pickup_location.address || "N/A"}
+                            </p>
+                            <p className="truncate flex items-center gap-1 mt-0.5">
+                              <Icon icon="mdi:map-marker" className="text-red-500 flex-shrink-0" />
+                              {course.dropoff_location.address || "N/A"}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
+                            {sc.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-semibold text-gray-800">{course.price.toLocaleString()} FCFA</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-xs text-gray-500">
+                            {new Date(course.created_at).toLocaleDateString("fr-FR")}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(course.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Icon icon="mdi:car-clock" className="text-6xl mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium text-gray-600">Aucune course</p>
+              <p className="text-sm text-gray-400 mt-1">Ce chauffeur n'a pas encore effectue de course</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Image Preview Modal */}
       {showImageModal && previewImage && (
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
