@@ -129,9 +129,10 @@ export default function CourseDetails() {
   };
 
   const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const rounded = Math.round(minutes * 100) / 100;
+    if (rounded < 60) return `${rounded} min`;
+    const hours = Math.floor(rounded / 60);
+    const mins = Math.round((rounded % 60) * 100) / 100;
     return `${hours}h ${mins}min`;
   };
 
