@@ -89,8 +89,10 @@ type ApiCourse = {
     ratePrice: number;
     priceMn: number;
   };
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
   updated_at?: string;
+  updatedAt?: string;
 };
 
 // Normaliser les statuts de l'API vers les statuts internes
@@ -103,39 +105,44 @@ const normalizeStatus = (status: string): string => {
   return statusMap[normalized] || normalized;
 };
 
-// Mapper API -> CourseProps
-const mapApiToCourse = (api: ApiCourse): CourseProps => ({
-  id: api.id,
-  code_booking: api.id.toString(),
-  customer: {
-    matricule: api.client?.matricule || "",
-    name: api.client?.name || "Inconnu",
-    phone: api.client?.phone || "",
-    avatar: api.client?.avatar || null,
-  },
-  driver: api.driver
-    ? {
-        matricule: api.driver.matricule || "",
-        name: api.driver.name || "Inconnu",
-        phone: api.driver.phone || "",
-        avatar: api.driver.avatar || null,
-      }
-    : null,
-  pickup_location: api.pickupLocation || { address: "", latitude: 0, longitude: 0 },
-  dropoff_location: api.dropOffLocation || { address: "", latitude: 0, longitude: 0 },
-  status: normalizeStatus(api.status),
-  payment_method: api.paymentMethod
-    ? { id: api.paymentMethod.id, name: api.paymentMethod.name }
-    : null,
-  price: api.totalPrice || 0,
-  distance: api.distanceKm || 0,
-  duration: api.durationMn || 0,
-  commission: 0,
-  created_at: api.created_at,
-  updated_at: api.updated_at || api.created_at,
-  started_at: api.raceStartTime || undefined,
-  completed_at: api.raceEndTime || undefined,
-});
+// Mapper API -> CourseProps (gere les formats camelCase et snake_case)
+const mapApiToCourse = (api: ApiCourse): CourseProps => {
+  const createdAt = api.created_at || api.createdAt || "";
+  const updatedAt = api.updated_at || api.updatedAt || "";
+
+  return {
+    id: api.id,
+    code_booking: api.id.toString(),
+    customer: {
+      matricule: api.client?.matricule || "",
+      name: api.client?.name || "Inconnu",
+      phone: api.client?.phone || "",
+      avatar: api.client?.avatar || null,
+    },
+    driver: api.driver
+      ? {
+          matricule: api.driver.matricule || "",
+          name: api.driver.name || "Inconnu",
+          phone: api.driver.phone || "",
+          avatar: api.driver.avatar || null,
+        }
+      : null,
+    pickup_location: api.pickupLocation || { address: "", latitude: 0, longitude: 0 },
+    dropoff_location: api.dropOffLocation || { address: "", latitude: 0, longitude: 0 },
+    status: normalizeStatus(api.status),
+    payment_method: api.paymentMethod
+      ? { id: api.paymentMethod.id, name: api.paymentMethod.name }
+      : null,
+    price: api.totalPrice || 0,
+    distance: api.distanceKm || 0,
+    duration: api.durationMn || 0,
+    commission: 0,
+    created_at: createdAt,
+    updated_at: updatedAt && updatedAt !== createdAt ? updatedAt : createdAt,
+    started_at: api.raceStartTime || undefined,
+    completed_at: api.raceEndTime || undefined,
+  };
+};
 
 type CourseListResponse = {
   message: string;
@@ -305,32 +312,59 @@ const extractCourses = (resData: any): ApiCourse[] => {
 
 // Courses d'un client
 const getByCustomer = async (customerMatricule: string) => {
-  const res = await Axios.get(
-    `booking_service/bookings/customer/${customerMatricule}`
-  );
-  const raw = extractCourses(res.data);
-  const mapped = raw.map(mapApiToCourse);
-  mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  return {
-    message: res.data?.message || "",
-    status: res.data?.status || res.status,
-    data: mapped,
-  };
+  try {
+    const res = await Axios.get(
+      `booking_service/bookings/${customerMatricule}/list?take=1000`
+    );
+    const raw = extractCourses(res.data);
+    const mapped = raw.map(mapApiToCourse);
+    mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return {
+      message: res.data?.message || "",
+      status: res.data?.status || res.status,
+      data: mapped,
+    };
+  } catch {
+    // Fallback: recuperer toutes les courses et filtrer par client
+    const allRes = await getAll();
+    const filtered = allRes.data.filter(
+      (c) => c.customer?.matricule === customerMatricule
+    );
+    return {
+      message: allRes.message,
+      status: allRes.status,
+      data: filtered,
+    };
+  }
 };
 
 // Courses d'un chauffeur
 const getByDriver = async (driverMatricule: string) => {
-  const res = await Axios.get(
-    `booking_service/bookings/driver/${driverMatricule}`
-  );
-  const raw = extractCourses(res.data);
-  const mapped = raw.map(mapApiToCourse);
-  mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  return {
-    message: res.data?.message || "",
-    status: res.data?.status || res.status,
-    data: mapped,
-  };
+  try {
+    // Essayer l'endpoint dedie au chauffeur
+    const res = await Axios.get(
+      `booking_service/bookings/${driverMatricule}/driver_list?take=1000`
+    );
+    const raw = extractCourses(res.data);
+    const mapped = raw.map(mapApiToCourse);
+    mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return {
+      message: res.data?.message || "",
+      status: res.data?.status || res.status,
+      data: mapped,
+    };
+  } catch {
+    // Fallback: recuperer toutes les courses et filtrer par chauffeur
+    const allRes = await getAll();
+    const filtered = allRes.data.filter(
+      (c) => c.driver?.matricule === driverMatricule
+    );
+    return {
+      message: allRes.message,
+      status: allRes.status,
+      data: filtered,
+    };
+  }
 };
 
 // Courses en cours (live)

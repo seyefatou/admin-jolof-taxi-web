@@ -506,9 +506,16 @@ export default function CourseDetails() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-800">Course annulee</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(course.updated_at).toLocaleString("fr-FR")}
-                      </p>
+                      {course.updated_at && course.updated_at !== course.created_at ? (
+                        <p className="text-sm text-gray-500">
+                          {new Date(course.updated_at).toLocaleString("fr-FR")}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">Date non disponible</p>
+                      )}
+                      {course.cancel_reason && (
+                        <p className="text-sm text-red-500 mt-1">Raison: {course.cancel_reason}</p>
+                      )}
                     </div>
                   </div>
                 )}
