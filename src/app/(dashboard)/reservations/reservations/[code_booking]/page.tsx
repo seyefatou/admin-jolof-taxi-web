@@ -114,6 +114,7 @@ export default function CourseDetails() {
       DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee", icon: "mdi:check-circle" },
       PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente", icon: "mdi:clock-outline" },
       ACCEPTED: { bg: "bg-cyan-100", text: "text-cyan-700", label: "Acceptee", icon: "mdi:check-decagram" },
+      DRIVER_IN_PROGRESS: { bg: "bg-indigo-100", text: "text-indigo-700", label: "Chauffeur en route", icon: "mdi:car-arrow-right" },
       IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours", icon: "mdi:car-clock" },
       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee", icon: "mdi:close-circle" },
       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee par client", icon: "mdi:account-cancel" },
@@ -202,7 +203,7 @@ export default function CourseDetails() {
                   Assigner chauffeur
                 </button>
               )}
-              {(course.status === "PENDING" || course.status === "ACCEPTED" || course.status === "IN_PROGRESS") && (
+              {(course.status === "PENDING" || course.status === "ACCEPTED" || course.status === "DRIVER_IN_PROGRESS" || course.status === "IN_PROGRESS") && (
                 <button
                   onClick={() => setShowCancelModal(true)}
                   className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2 font-medium"
@@ -457,7 +458,7 @@ export default function CourseDetails() {
                 )}
 
                 {/* Course acceptee */}
-                {(course.status === "ACCEPTED" || course.status === "IN_PROGRESS" || course.status === "DONE") && course.driver && (
+                {(course.status === "ACCEPTED" || course.status === "DRIVER_IN_PROGRESS" || course.status === "IN_PROGRESS" || course.status === "DONE") && course.driver && (
                   <div className="flex gap-3 relative">
                     <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 z-10">
                       <Icon icon="mdi:check-decagram" className="text-cyan-600" />
@@ -465,6 +466,19 @@ export default function CourseDetails() {
                     <div>
                       <p className="font-medium text-gray-800">Course acceptee</p>
                       <p className="text-sm text-gray-500">Le chauffeur a accepte la course</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chauffeur en route */}
+                {(course.status === "DRIVER_IN_PROGRESS" || course.status === "IN_PROGRESS" || course.status === "DONE") && course.driver && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:car-arrow-right" className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Chauffeur en route</p>
+                      <p className="text-sm text-gray-500">Le chauffeur se dirige vers le client</p>
                     </div>
                   </div>
                 )}
