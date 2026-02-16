@@ -46,6 +46,7 @@ export default function CoursesPage() {
     { value: "ALL", label: "Tous les statuts", icon: "mdi:format-list-bulleted" },
     { value: "DONE", label: "Terminee", icon: "mdi:check-circle" },
     { value: "PENDING", label: "En attente", icon: "mdi:clock-outline" },
+    { value: "ACCEPTED", label: "Acceptee", icon: "mdi:check-decagram" },
     { value: "IN_PROGRESS", label: "En cours", icon: "mdi:car-clock" },
     { value: "ALL_CANCELED", label: "Toutes les annulations", icon: "mdi:close-circle" },
     { value: "CANCELED_BY_CUSTOMER", label: "Annulee par client", icon: "mdi:account-cancel" },
@@ -284,6 +285,7 @@ export default function CoursesPage() {
     const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
       DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
       PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
+      ACCEPTED: { bg: "bg-cyan-100", text: "text-cyan-700", label: "Acceptee" },
       IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee par client" },
@@ -585,7 +587,7 @@ export default function CoursesPage() {
                             </button>
                           )}
 
-                          {(course.status === "PENDING" || course.status === "IN_PROGRESS") && (
+                          {(course.status === "PENDING" || course.status === "ACCEPTED" || course.status === "IN_PROGRESS") && (
                             <>
                               <div className="border-t border-gray-100 my-1"></div>
                               <button

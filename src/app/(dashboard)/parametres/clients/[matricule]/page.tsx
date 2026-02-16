@@ -504,6 +504,7 @@ export default function ClientDetails() {
                     const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
                       DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
                       PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
+                      ACCEPTED: { bg: "bg-cyan-100", text: "text-cyan-700", label: "Acceptee" },
                       IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
                       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
                       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
