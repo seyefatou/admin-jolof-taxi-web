@@ -7,6 +7,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "@/components/ConfirmModal";
 import { SERVICE_CLIENT, ClientProps } from "@/services/client-service";
+import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 
 export default function ClientDetails() {
   const params = useParams();
@@ -16,6 +17,10 @@ export default function ClientDetails() {
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientProps | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "history">("info");
+
+  // Courses du client
+  const [clientCourses, setClientCourses] = useState<CourseProps[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
 
   // Confirm modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -42,9 +47,22 @@ export default function ClientDetails() {
     }
   };
 
+  const loadCourses = async () => {
+    try {
+      setCoursesLoading(true);
+      const res = await SERVICE_COURSE.getByCustomer(matricule);
+      setClientCourses(res.data || []);
+    } catch (error) {
+      console.log("Courses non disponibles:", error);
+    } finally {
+      setCoursesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (matricule) {
       loadClient();
+      loadCourses();
     }
   }, [matricule]);
 
@@ -229,7 +247,7 @@ export default function ClientDetails() {
                 </div>
                 <div>
                   <p className="text-gray-500">Courses</p>
-                  <p className="font-medium">{client.totalRides || 0}</p>
+                  <p className="font-medium">{clientCourses.length || client.totalRides || 0}</p>
                 </div>
               </div>
             </div>
@@ -335,30 +353,75 @@ export default function ClientDetails() {
           <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Icon icon="mdi:chart-bar" className="text-yellow-500" />
-              Statistiques
+              Statistiques des courses
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-yellow-50 rounded-xl p-4 text-center">
-                <Icon icon="mdi:car" className="text-3xl text-yellow-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-gray-800">{client.totalRides || 0}</p>
-                <p className="text-xs text-gray-500">Courses effectuees</p>
+            {coursesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600"></div>
               </div>
-              <div className="bg-green-50 rounded-xl p-4 text-center">
-                <Icon icon="mdi:check-circle" className="text-3xl text-green-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-gray-800">-</p>
-                <p className="text-xs text-gray-500">Courses terminees</p>
-              </div>
-              <div className="bg-red-50 rounded-xl p-4 text-center">
-                <Icon icon="mdi:close-circle" className="text-3xl text-red-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-gray-800">-</p>
-                <p className="text-xs text-gray-500">Courses annulees</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-4 text-center">
-                <Icon icon="mdi:cash" className="text-3xl text-blue-500 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-gray-800">- FCFA</p>
-                <p className="text-xs text-gray-500">Total depense</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 rounded-xl p-4 text-center">
+                    <Icon icon="mdi:car-multiple" className="text-3xl text-blue-500 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-gray-800">{clientCourses.length}</p>
+                    <p className="text-xs text-gray-500">Total courses</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-4 text-center">
+                    <Icon icon="mdi:check-circle" className="text-3xl text-green-500 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-green-700">
+                      {clientCourses.filter(c => c.status === "DONE").length}
+                    </p>
+                    <p className="text-xs text-gray-500">Terminees</p>
+                  </div>
+                  <div className="bg-red-50 rounded-xl p-4 text-center">
+                    <Icon icon="mdi:close-circle" className="text-3xl text-red-500 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-red-700">
+                      {clientCourses.filter(c => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_DRIVER").length}
+                    </p>
+                    <p className="text-xs text-gray-500">Annulees</p>
+                  </div>
+                  <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                    <Icon icon="mdi:clock-outline" className="text-3xl text-yellow-500 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-yellow-700">
+                      {clientCourses.filter(c => c.status === "PENDING" || c.status === "IN_PROGRESS").length}
+                    </p>
+                    <p className="text-xs text-gray-500">En cours / Attente</p>
+                  </div>
+                </div>
+
+                {/* Taux de completion */}
+                {clientCourses.length > 0 && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-bold text-gray-700">Taux de completion</p>
+                      <p className="text-sm font-bold text-green-600">
+                        {Math.round((clientCourses.filter(c => c.status === "DONE").length / clientCourses.length) * 100)}%
+                      </p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.round((clientCourses.filter(c => c.status === "DONE").length / clientCourses.length) * 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total depense */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <Icon icon="mdi:cash-multiple" className="text-2xl text-yellow-600" />
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Total depense</p>
+                      <p className="text-xl font-bold text-gray-800">
+                        {clientCourses.filter(c => c.status === "DONE").reduce((sum, c) => sum + c.price, 0).toLocaleString("fr-FR")} FCFA
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Statut du compte */}
@@ -416,16 +479,93 @@ export default function ClientDetails() {
         <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <Icon icon="mdi:history" className="text-yellow-500" />
-            Historique des courses
+            Historique des courses ({clientCourses.length})
           </h3>
 
-          <div className="text-center py-12 text-gray-500">
-            <Icon icon="mdi:car-clock" className="text-6xl mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">Aucune course</p>
-            <p className="text-sm text-gray-400 mt-1">
-              L'historique des courses du client apparaitra ici
-            </p>
-          </div>
+          {coursesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-300 border-t-gray-600"></div>
+            </div>
+          ) : clientCourses.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-200">
+                    <th className="pb-3 pr-4">Course</th>
+                    <th className="pb-3 pr-4">Trajet</th>
+                    <th className="pb-3 pr-4">Chauffeur</th>
+                    <th className="pb-3 pr-4">Statut</th>
+                    <th className="pb-3 pr-4">Prix</th>
+                    <th className="pb-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {clientCourses.map((course) => {
+                    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+                      DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
+                      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
+                      IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
+                      CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
+                      CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
+                      CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
+                    };
+                    const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
+
+                    return (
+                      <tr
+                        key={course.id}
+                        onClick={() => router.push(`/reservations/reservations/${course.code_booking}`)}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <td className="py-3 pr-4">
+                          <p className="text-sm font-semibold text-gray-800">#{course.code_booking}</p>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="text-xs text-gray-600 max-w-[200px]">
+                            <p className="truncate flex items-center gap-1">
+                              <Icon icon="mdi:map-marker" className="text-green-500 flex-shrink-0" />
+                              {course.pickup_location.address || "N/A"}
+                            </p>
+                            <p className="truncate flex items-center gap-1 mt-0.5">
+                              <Icon icon="mdi:map-marker" className="text-red-500 flex-shrink-0" />
+                              {course.dropoff_location.address || "N/A"}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <p className="text-sm text-gray-700">{course.driver?.name || "Non assigne"}</p>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
+                            {sc.label}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <p className="text-sm font-semibold text-gray-800">{course.price.toLocaleString()} FCFA</p>
+                        </td>
+                        <td className="py-3">
+                          <p className="text-xs text-gray-500">
+                            {new Date(course.created_at).toLocaleDateString("fr-FR")}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(course.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <Icon icon="mdi:car-clock" className="text-6xl mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Aucune course</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Ce client n'a pas encore effectue de course
+              </p>
+            </div>
+          )}
         </div>
       )}
 
