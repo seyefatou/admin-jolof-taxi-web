@@ -423,72 +423,105 @@ export default function CourseDetails() {
               Chronologie
             </h3>
 
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:plus" className="text-green-600" />
+            <div className="relative">
+              {/* Ligne verticale de connexion */}
+              <div className="absolute left-4 top-8 bottom-4 w-0.5 bg-gray-200"></div>
+
+              <div className="space-y-6">
+                {/* Course creee */}
+                <div className="flex gap-3 relative">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 z-10">
+                    <Icon icon="mdi:plus" className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-800">Course creee</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(course.created_at).toLocaleString("fr-FR")}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-800">Course creee</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(course.created_at).toLocaleString("fr-FR")}
-                  </p>
-                </div>
+
+                {/* Chauffeur assigne */}
+                {course.driver && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:account-check" className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Chauffeur assigne</p>
+                      <p className="text-sm text-gray-500">{course.driver.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Course demarree */}
+                {course.started_at && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:car" className="text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Course demarree</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(course.started_at).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Course terminee */}
+                {course.completed_at && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:check-circle" className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Course terminee</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(course.completed_at).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Course annulee */}
+                {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER") && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:close-circle" className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Course annulee</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(course.updated_at).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Statut actuel - En attente (pas encore demarree ni terminee ni annulee) */}
+                {course.status === "PENDING" && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:clock-outline" className="text-yellow-600 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-yellow-700">En attente d'un chauffeur...</p>
+                    </div>
+                  </div>
+                )}
+
+                {course.status === "IN_PROGRESS" && !course.completed_at && (
+                  <div className="flex gap-3 relative">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 z-10">
+                      <Icon icon="mdi:car-clock" className="text-blue-600 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-blue-700">Course en cours...</p>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {course.driver && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="mdi:account-check" className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">Chauffeur assigne</p>
-                    <p className="text-sm text-gray-500">{course.driver.name}</p>
-                  </div>
-                </div>
-              )}
-
-              {course.started_at && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="mdi:car" className="text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">Course demarree</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(course.started_at).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {course.completed_at && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="mdi:check-circle" className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">Course terminee</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(course.completed_at).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER") && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="mdi:close-circle" className="text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">Course annulee</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(course.updated_at).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

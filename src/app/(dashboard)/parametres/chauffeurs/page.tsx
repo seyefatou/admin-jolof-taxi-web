@@ -12,7 +12,7 @@ import ChauffeurFormModal from "@/components/chauffeurs/ChauffeurFormModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ExportDropdown from "@/components/ExportDropdown";
 import { exportToExcel, exportToPDF, ExportColumn, STATUS_LABELS, ONLINE_LABELS } from "@/utils/export-table";
-import { SERVICE_CHAUFFEUR, ChauffeurProps, UpdateChauffeurData } from "@/services/chauffeur-service";
+import { SERVICE_CHAUFFEUR, ChauffeurProps, UpdateChauffeurData, ConnectionQuality } from "@/services/chauffeur-service";
 import { SERVICE_GARAGES, GaragesProps } from "@/services/garage-service";
 import { SERVICE_VEHICULES, VehiculeTypeResp } from "@/services/vehicule-service";
 import {
@@ -36,6 +36,7 @@ export default function ChauffeursList() {
   const [chauffeurs, setChauffeurs] = useState<ChauffeurProps[]>([]);
   const [garages, setGarages] = useState<GaragesProps[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehiculeTypeResp[]>([]);
+  const [connectionMap, setConnectionMap] = useState<Record<string, ConnectionQuality>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [onlineFilter, setOnlineFilter] = useState("ALL");
@@ -70,8 +71,9 @@ export default function ChauffeursList() {
 
   const onlineOptions = [
     { value: "ALL", label: "Tous", icon: "mdi:account-group" },
-    { value: "ONLINE", label: "En ligne", icon: "mdi:circle" },
-    { value: "OFFLINE", label: "Hors ligne", icon: "mdi:circle-outline" },
+    { value: "GOOD", label: "Bonne connexion", icon: "mdi:wifi" },
+    { value: "POOR", label: "Mauvaise connexion", icon: "mdi:wifi-strength-2" },
+    { value: "DISCONNECTED", label: "Deconnecte", icon: "mdi:wifi-off" },
   ];
 
   // Close menu on outside click
@@ -114,14 +116,24 @@ export default function ChauffeursList() {
   const loadData = async () => {
     try {
       setInitialLoading(true);
-      const [chauffeursRes, garagesRes, vehicleTypesRes] = await Promise.all([
+      const [chauffeursRes, garagesRes, vehicleTypesRes, trackingRes] = await Promise.all([
         SERVICE_CHAUFFEUR.getAll(),
         SERVICE_GARAGES.getAll(),
         SERVICE_VEHICULES.getTypeList(),
+        SERVICE_CHAUFFEUR.getLiveTracking().catch(() => null),
       ]);
       setChauffeurs(chauffeursRes.data || []);
       setGarages(garagesRes.data || []);
       setVehicleTypes(vehicleTypesRes.data || []);
+
+      // Construire la map matricule → connectionQuality
+      if (trackingRes?.data?.drivers) {
+        const map: Record<string, ConnectionQuality> = {};
+        for (const d of trackingRes.data.drivers) {
+          map[d.matricule] = d.connectionQuality || "DISCONNECTED";
+        }
+        setConnectionMap(map);
+      }
     } catch (error) {
       toast.error("Erreur lors de la recuperation des donnees");
       console.error("Erreur:", error);
@@ -152,10 +164,9 @@ export default function ChauffeursList() {
       chauffeur.matricule?.toLowerCase().includes(searchLower);
 
     const matchStatus = statusFilter === "ALL" || chauffeur.status === statusFilter;
+    const driverConnection = connectionMap[chauffeur.matricule] || "DISCONNECTED";
     const matchOnline =
-      onlineFilter === "ALL" ||
-      (onlineFilter === "ONLINE" && chauffeur.isOnline) ||
-      (onlineFilter === "OFFLINE" && !chauffeur.isOnline);
+      onlineFilter === "ALL" || driverConnection === onlineFilter;
     const matchGarage =
       garageFilter === "ALL" ||
       chauffeur.garageAffiliation?.id?.toString() === garageFilter;
@@ -352,6 +363,7 @@ export default function ChauffeursList() {
     { header: "Nom", accessor: (c) => c.name || "" },
     { header: "Telephone", accessor: (c) => c.phone || "-" },
     { header: "Statut", accessor: (c) => STATUS_LABELS[c.status] || c.status },
+    { header: "Etat Reseau", accessor: (c) => ONLINE_LABELS[connectionMap[c.matricule] || "DISCONNECTED"] || "Deconnecte" },
     { header: "Vehicule", accessor: (c) => c.vehicule ? `${c.vehicule.brand} ${c.vehicule.model} — ${c.vehicule.licensePlateNumber?.toUpperCase()}` : "-" },
     { header: "Garage", accessor: (c) => c.garageAffiliation?.name || "-" },
   ];
@@ -371,7 +383,7 @@ export default function ChauffeursList() {
   const stats = {
     total: chauffeurs.length,
     active: chauffeurs.filter((c) => c.status === "ACTIVE").length,
-    online: chauffeurs.filter((c) => c.isOnline).length,
+    online: chauffeurs.filter((c) => connectionMap[c.matricule] === "GOOD" || connectionMap[c.matricule] === "POOR").length,
     pending: chauffeurs.filter((c) => c.status === "PENDING").length,
   };
 
@@ -498,9 +510,14 @@ export default function ChauffeursList() {
                           src={chauffeur.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chauffeur.name || "U")}&background=FEF08A&color=713F12&bold=true`}
                           alt={chauffeur.name || "User"}
                         />
-                        {chauffeur.isOnline && (
+                        {connectionMap[chauffeur.matricule] === "GOOD" && (
                           <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full">
                             <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75"></span>
+                          </span>
+                        )}
+                        {connectionMap[chauffeur.matricule] === "POOR" && (
+                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-orange-500 border-2 border-white rounded-full">
+                            <span className="absolute inset-0 rounded-full bg-orange-400 animate-ping opacity-75"></span>
                           </span>
                         )}
                       </div>
@@ -561,7 +578,7 @@ export default function ChauffeursList() {
 
                   {/* Etat Reseau */}
                   <TableCell>
-                    <OnlineBadge isOnline={chauffeur.isOnline} />
+                    <OnlineBadge connectionQuality={connectionMap[chauffeur.matricule]} />
                   </TableCell>
 
                   {/* Vehicule */}

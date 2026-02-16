@@ -59,6 +59,20 @@ export type ChauffeurProps = {
   wallet: WalletInfo | null;
   garageAffiliation: GarageInfo | null;
   driverDocument: DriverDocumentInfo[];
+  referal?: string | null;
+  isAmbassadeur?: boolean;
+};
+
+export type FilleulProps = {
+  id: number;
+  matricule: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  avatar?: string | null;
+  status: string;
+  isOnline: boolean;
+  rating?: number;
 };
 
 export type CreateChauffeurData = {
@@ -152,6 +166,8 @@ const mapChauffeurData = (driver: any): ChauffeurProps => {
     wallet: driver.wallet || null,
     garageAffiliation: driver.garage || driver.garageAffiliation || null,
     driverDocument: driver.driverDocument || [],
+    referal: driver.referal || null,
+    isAmbassadeur: driver.isAmbassadeur || false,
   };
 };
 
@@ -270,6 +286,31 @@ const setPending = async (matricule: string) => {
   return res.data;
 };
 
+// Mettre un chauffeur hors ligne
+const setOffline = async (matricule: string) => {
+  const res = await Axios.put<BaseResponse>(
+    `auth_service/users/drivers/${matricule}/set_offline`
+  );
+  return res.data;
+};
+
+// Liste des filleuls d'un chauffeur
+const getFilleuls = async (matricule: string) => {
+  const res = await Axios.get<{ message: string; status: number; data: FilleulProps[] }>(
+    `auth_service/users/drivers/${matricule}/filleuls`
+  );
+  return res.data;
+};
+
+// Changer le statut ambassadeur
+const changeAmbassadeurStatus = async (matricule: string, isAmbassadeur: boolean) => {
+  const res = await Axios.put<BaseResponse>(
+    `auth_service/users/drivers/${matricule}/change_ambassadeur_status`,
+    { isAmbassadeur }
+  );
+  return res.data;
+};
+
 export const SERVICE_CHAUFFEUR = {
   getAll,
   search,
@@ -282,4 +323,7 @@ export const SERVICE_CHAUFFEUR = {
   update,
   remove,
   setPending,
+  setOffline,
+  getFilleuls,
+  changeAmbassadeurStatus,
 };

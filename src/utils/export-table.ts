@@ -27,8 +27,9 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const ONLINE_LABELS: Record<string, string> = {
-  true: "En ligne",
-  false: "Hors ligne",
+  GOOD: "Bonne connexion",
+  POOR: "Mauvaise connexion",
+  DISCONNECTED: "Deconnecte",
 };
 
 // ---------- Helpers ----------

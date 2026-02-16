@@ -51,7 +51,7 @@ const TABS: Tab[] = [
   },
   {
     id: "vehicule",
-    label: "Vehicule",
+    label: "Categories de vehicules",
     icon: "mdi:car-multiple",
     description: "Types et tarification",
   },

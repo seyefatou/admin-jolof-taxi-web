@@ -90,20 +90,39 @@ export const StatusBadge: React.FC<{
   );
 };
 
-// Badge en ligne / hors ligne
-export const OnlineBadge: React.FC<{ isOnline: boolean }> = ({ isOnline }) => {
-  return isOnline ? (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200 shadow-sm">
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+// Badge etat reseau (connexion)
+export const OnlineBadge: React.FC<{ connectionQuality?: "GOOD" | "POOR" | "DISCONNECTED" | null; isOnline?: boolean }> = ({ connectionQuality, isOnline }) => {
+  // Si connectionQuality est fourni, l'utiliser. Sinon fallback sur isOnline (pour clients)
+  const quality = connectionQuality || (isOnline ? "GOOD" : "DISCONNECTED");
+
+  if (quality === "GOOD") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200 shadow-sm">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+        </span>
+        Bonne
       </span>
-      En ligne
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-gray-100 to-slate-100 text-gray-600 border border-gray-200 shadow-sm">
-      <span className="h-2 w-2 rounded-full bg-gray-400"></span>
-      Hors ligne
+    );
+  }
+
+  if (quality === "POOR") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border border-orange-200 shadow-sm">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+        </span>
+        Mauvaise
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-red-100 to-rose-100 text-red-700 border border-red-200 shadow-sm">
+      <span className="h-2 w-2 rounded-full bg-red-500"></span>
+      Deconnecte
     </span>
   );
 };

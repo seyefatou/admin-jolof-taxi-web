@@ -80,6 +80,7 @@ type ApiCourse = {
   durationMn: number;
   additionalFees?: number | null;
   raceStartTime?: string | null;
+  raceEndTime?: string | null;
   waitTimeMn?: number | null;
   typeCar?: {
     id: number;
@@ -89,6 +90,7 @@ type ApiCourse = {
     priceMn: number;
   };
   created_at: string;
+  updated_at?: string;
 };
 
 // Mapper API -> CourseProps
@@ -120,8 +122,9 @@ const mapApiToCourse = (api: ApiCourse): CourseProps => ({
   duration: api.durationMn || 0,
   commission: 0,
   created_at: api.created_at,
-  updated_at: api.created_at,
+  updated_at: api.updated_at || api.created_at,
   started_at: api.raceStartTime || undefined,
+  completed_at: api.raceEndTime || undefined,
 });
 
 type CourseListResponse = {

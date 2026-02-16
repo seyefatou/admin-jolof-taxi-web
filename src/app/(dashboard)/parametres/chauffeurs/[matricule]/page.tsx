@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { SERVICE_CHAUFFEUR, ChauffeurProps, DriverDocumentInfo } from "@/services/chauffeur-service";
+import { SERVICE_CHAUFFEUR, ChauffeurProps, DriverDocumentInfo, FilleulProps } from "@/services/chauffeur-service";
 import { SERVICE_DOCUMENT, DocumentType } from "@/services/document-service";
 
 export default function ChauffeurDetails() {
@@ -30,7 +30,7 @@ export default function ChauffeurDetails() {
   // Confirm modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "approve" | "reject" | "delete" | "activate" | "deactivate";
+    type: "approve" | "reject" | "delete" | "activate" | "deactivate" | "ambassadeur" | "remove_ambassadeur";
     document?: DriverDocumentInfo;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -40,6 +40,11 @@ export default function ChauffeurDetails() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
+
+  // Filleuls (parrainage)
+  const [filleuls, setFilleuls] = useState<FilleulProps[]>([]);
+  const [filleulsLoading, setFilleulsLoading] = useState(false);
+  const [offlineLoading, setOfflineLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -59,6 +64,17 @@ export default function ChauffeurDetails() {
         setDocumentTypes(typesRes.data || []);
       } catch (docError) {
         console.log("Types de documents non disponibles:", docError);
+      }
+
+      // Charger les filleuls
+      try {
+        setFilleulsLoading(true);
+        const filleulsRes = await SERVICE_CHAUFFEUR.getFilleuls(matricule);
+        setFilleuls(filleulsRes.data || []);
+      } catch (filleulError) {
+        console.log("Filleuls non disponibles:", filleulError);
+      } finally {
+        setFilleulsLoading(false);
       }
     } catch (error: unknown) {
       console.error("Erreur chargement chauffeur:", error);
@@ -117,6 +133,29 @@ export default function ChauffeurDetails() {
     setShowConfirmModal(true);
   };
 
+  const handleSetOffline = async () => {
+    setOfflineLoading(true);
+    try {
+      const res = await SERVICE_CHAUFFEUR.setOffline(matricule);
+      if (res.status === 200) {
+        toast.success("Chauffeur mis hors ligne avec succes");
+        loadData();
+      } else {
+        toast.error(res.message || "Erreur lors de l'operation");
+      }
+    } catch {
+      toast.error("Erreur lors de la mise hors ligne");
+    } finally {
+      setOfflineLoading(false);
+    }
+  };
+
+  const handleToggleAmbassadeur = () => {
+    if (!chauffeur) return;
+    setConfirmAction({ type: chauffeur.isAmbassadeur ? "remove_ambassadeur" : "ambassadeur" });
+    setShowConfirmModal(true);
+  };
+
   const openImagePreview = (imageUrl: string, title: string) => {
     setPreviewImage(imageUrl);
     setPreviewTitle(title);
@@ -147,6 +186,12 @@ export default function ChauffeurDetails() {
         case "deactivate":
           res = await SERVICE_CHAUFFEUR.deactivate(matricule);
           break;
+        case "ambassadeur":
+          res = await SERVICE_CHAUFFEUR.changeAmbassadeurStatus(matricule, true);
+          break;
+        case "remove_ambassadeur":
+          res = await SERVICE_CHAUFFEUR.changeAmbassadeurStatus(matricule, false);
+          break;
       }
 
       if (res && (res.status === 200 || res.status === 201)) {
@@ -156,6 +201,8 @@ export default function ChauffeurDetails() {
           delete: "Document supprime",
           activate: "Chauffeur active avec succes",
           deactivate: "Chauffeur desactive avec succes",
+          ambassadeur: "Chauffeur defini comme ambassadeur",
+          remove_ambassadeur: "Statut ambassadeur retire",
         };
         toast.success(messages[type]);
         setShowConfirmModal(false);
@@ -348,6 +395,47 @@ export default function ChauffeurDetails() {
               </div>
             </button>
           )}
+          {chauffeur.isOnline && (
+            <button
+              onClick={handleSetOffline}
+              disabled={offlineLoading}
+              className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-red-50 hover:border-red-400 transition-all group shadow-sm hover:shadow-md disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                  {offlineLoading ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-red-500 border-t-transparent" />
+                  ) : (
+                    <Icon icon="mdi:wifi-off" className="text-2xl text-gray-700 group-hover:text-red-600" />
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-gray-800">Hors ligne</p>
+                  <p className="text-xs text-gray-500">deconnecter</p>
+                </div>
+              </div>
+            </button>
+          )}
+          <button
+            onClick={handleToggleAmbassadeur}
+            className={`bg-white border border-gray-200 rounded-2xl p-4 transition-all group shadow-sm hover:shadow-md ${
+              chauffeur.isAmbassadeur ? "hover:bg-orange-50 hover:border-orange-400" : "hover:bg-green-50 hover:border-green-400"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center transition-colors ${
+                chauffeur.isAmbassadeur ? "group-hover:bg-orange-100" : "group-hover:bg-green-100"
+              }`}>
+                <Icon icon="mdi:account-star" className={`text-2xl text-gray-700 ${
+                  chauffeur.isAmbassadeur ? "group-hover:text-orange-600" : "group-hover:text-green-600"
+                }`} />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-gray-800">{chauffeur.isAmbassadeur ? "Retirer" : "Ambassadeur"}</p>
+                <p className="text-xs text-gray-500">{chauffeur.isAmbassadeur ? "ambassadeur" : "promouvoir"}</p>
+              </div>
+            </div>
+          </button>
           <button
             onClick={() => setShowUploadModal(true)}
             className="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-green-50 hover:border-green-400 transition-all group shadow-sm hover:shadow-md"
@@ -547,6 +635,97 @@ export default function ChauffeurDetails() {
                 <p className="text-gray-400">Ce chauffeur n'est affilie a aucun garage</p>
               </div>
             )}
+          </div>
+
+          {/* Parrainage Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:account-group" className="text-yellow-400" />
+                Parrainage
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Statut ambassadeur */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <Icon icon="mdi:account-star" className={`text-2xl ${chauffeur.isAmbassadeur ? "text-purple-600" : "text-gray-400"}`} />
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Statut Ambassadeur</p>
+                    <p className="text-xs text-gray-500">Peut parrainer d'autres chauffeurs</p>
+                  </div>
+                </div>
+                <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                  chauffeur.isAmbassadeur ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-600"
+                }`}>
+                  {chauffeur.isAmbassadeur ? "Ambassadeur" : "Non"}
+                </span>
+              </div>
+
+              {/* Parrain (qui l'a parrainé) */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                <Icon icon="mdi:account-arrow-left" className="text-2xl text-gray-500" />
+                <div>
+                  <p className="text-sm font-bold text-gray-800">Parraine par</p>
+                  <p className="text-sm text-gray-600 font-mono">
+                    {chauffeur.referal || "Aucun parrain"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filleuls */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                    <Icon icon="mdi:account-multiple-plus" className="text-gray-500" />
+                    Filleuls ({filleuls.length})
+                  </p>
+                </div>
+
+                {filleulsLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600"></div>
+                  </div>
+                ) : filleuls.length > 0 ? (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {filleuls.map((filleul) => (
+                      <div
+                        key={filleul.id}
+                        onClick={() => router.push(`/parametres/chauffeurs/${filleul.matricule}`)}
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors"
+                      >
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                            {filleul.avatar ? (
+                              <img src={filleul.avatar} alt={filleul.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-sm font-bold text-gray-500">{filleul.name?.charAt(0)?.toUpperCase()}</span>
+                            )}
+                          </div>
+                          <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${filleul.isOnline ? "bg-green-500" : "bg-gray-400"}`}></span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{filleul.name}</p>
+                          <p className="text-xs text-gray-500">{filleul.phone}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                          filleul.status === "ACTIVE" ? "bg-green-100 text-green-700" :
+                          filleul.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-gray-100 text-gray-600"
+                        }`}>
+                          {filleul.status === "ACTIVE" ? "Actif" : filleul.status === "PENDING" ? "En attente" : filleul.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Icon icon="mdi:account-multiple-outline" className="text-4xl text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">Aucun filleul</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -816,17 +995,19 @@ export default function ChauffeurDetails() {
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
             <div className="text-center">
               <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
-                confirmAction.type === "approve" || confirmAction.type === "activate" ? "bg-green-100" :
-                confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "bg-orange-100" : "bg-red-100"
+                confirmAction.type === "approve" || confirmAction.type === "activate" || confirmAction.type === "ambassadeur" ? "bg-green-100" :
+                confirmAction.type === "reject" || confirmAction.type === "deactivate" || confirmAction.type === "remove_ambassadeur" ? "bg-orange-100" : "bg-red-100"
               }`}>
                 <Icon
                   icon={
+                    confirmAction.type === "ambassadeur" ? "mdi:account-star" :
+                    confirmAction.type === "remove_ambassadeur" ? "mdi:account-star-outline" :
                     confirmAction.type === "approve" || confirmAction.type === "activate" ? "mdi:check-circle" :
                     confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "mdi:close-circle" : "mdi:delete"
                   }
                   className={`text-5xl ${
-                    confirmAction.type === "approve" || confirmAction.type === "activate" ? "text-green-600" :
-                    confirmAction.type === "reject" || confirmAction.type === "deactivate" ? "text-orange-600" : "text-red-600"
+                    confirmAction.type === "approve" || confirmAction.type === "activate" || confirmAction.type === "ambassadeur" ? "text-green-600" :
+                    confirmAction.type === "reject" || confirmAction.type === "deactivate" || confirmAction.type === "remove_ambassadeur" ? "text-orange-600" : "text-red-600"
                   }`}
                 />
               </div>
@@ -836,7 +1017,9 @@ export default function ChauffeurDetails() {
                  confirmAction.type === "reject" ? "Rejeter le document" :
                  confirmAction.type === "delete" ? "Supprimer le document" :
                  confirmAction.type === "activate" ? "Activer le chauffeur" :
-                 "Desactiver le chauffeur"}
+                 confirmAction.type === "deactivate" ? "Desactiver le chauffeur" :
+                 confirmAction.type === "ambassadeur" ? "Promouvoir ambassadeur" :
+                 "Retirer le statut ambassadeur"}
               </h3>
 
               <p className="text-gray-600 mb-4">
@@ -848,7 +1031,11 @@ export default function ChauffeurDetails() {
                   ? `Voulez-vous supprimer "${confirmAction.document?.DocumentType?.title || "ce document"}" ?`
                   : confirmAction.type === "activate"
                   ? `Voulez-vous activer le compte de ${chauffeur.name || "ce chauffeur"} ?`
-                  : `Voulez-vous desactiver le compte de ${chauffeur.name || "ce chauffeur"} ?`}
+                  : confirmAction.type === "deactivate"
+                  ? `Voulez-vous desactiver le compte de ${chauffeur.name || "ce chauffeur"} ?`
+                  : confirmAction.type === "ambassadeur"
+                  ? `Voulez-vous definir ${chauffeur.name || "ce chauffeur"} comme ambassadeur ? Il pourra parrainer d'autres chauffeurs.`
+                  : `Voulez-vous retirer le statut ambassadeur de ${chauffeur.name || "ce chauffeur"} ?`}
               </p>
 
               {confirmAction.type === "reject" && (
@@ -878,9 +1065,9 @@ export default function ChauffeurDetails() {
                   onClick={executeAction}
                   disabled={actionLoading}
                   className={`flex-1 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all ${
-                    confirmAction.type === "approve" || confirmAction.type === "activate"
+                    confirmAction.type === "approve" || confirmAction.type === "activate" || confirmAction.type === "ambassadeur"
                       ? "bg-green-500 hover:bg-green-600 text-white"
-                      : confirmAction.type === "reject" || confirmAction.type === "deactivate"
+                      : confirmAction.type === "reject" || confirmAction.type === "deactivate" || confirmAction.type === "remove_ambassadeur"
                       ? "bg-orange-500 hover:bg-orange-600 text-white"
                       : "bg-red-500 hover:bg-red-600 text-white"
                   }`}
@@ -891,7 +1078,9 @@ export default function ChauffeurDetails() {
                     confirmAction.type === "approve" ? "Approuver" :
                     confirmAction.type === "reject" ? "Rejeter" :
                     confirmAction.type === "delete" ? "Supprimer" :
-                    confirmAction.type === "activate" ? "Activer" : "Desactiver"
+                    confirmAction.type === "activate" ? "Activer" :
+                    confirmAction.type === "deactivate" ? "Desactiver" :
+                    confirmAction.type === "ambassadeur" ? "Promouvoir" : "Retirer"
                   )}
                 </button>
               </div>
