@@ -93,6 +93,16 @@ type ApiCourse = {
   updated_at?: string;
 };
 
+// Normaliser les statuts de l'API vers les statuts internes
+const normalizeStatus = (status: string): string => {
+  const normalized = (status || "").replace(/ /g, "_");
+  const statusMap: Record<string, string> = {
+    RACE_STARTED: "IN_PROGRESS",
+    RACE_ENDED: "DONE",
+  };
+  return statusMap[normalized] || normalized;
+};
+
 // Mapper API -> CourseProps
 const mapApiToCourse = (api: ApiCourse): CourseProps => ({
   id: api.id,
@@ -113,7 +123,7 @@ const mapApiToCourse = (api: ApiCourse): CourseProps => ({
     : null,
   pickup_location: api.pickupLocation || { address: "", latitude: 0, longitude: 0 },
   dropoff_location: api.dropOffLocation || { address: "", latitude: 0, longitude: 0 },
-  status: (api.status || "").replace(/ /g, "_"),
+  status: normalizeStatus(api.status),
   payment_method: api.paymentMethod
     ? { id: api.paymentMethod.id, name: api.paymentMethod.name }
     : null,
