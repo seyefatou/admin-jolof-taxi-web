@@ -7,6 +7,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_CHAUFFEUR, ChauffeurProps, DriverDocumentInfo, FilleulProps } from "@/services/chauffeur-service";
 import { SERVICE_DOCUMENT, DocumentType } from "@/services/document-service";
+import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 
 export default function ChauffeurDetails() {
   const params = useParams();
@@ -46,6 +47,10 @@ export default function ChauffeurDetails() {
   const [filleulsLoading, setFilleulsLoading] = useState(false);
   const [offlineLoading, setOfflineLoading] = useState(false);
 
+  // Statistiques courses
+  const [driverCourses, setDriverCourses] = useState<CourseProps[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -75,6 +80,17 @@ export default function ChauffeurDetails() {
         console.log("Filleuls non disponibles:", filleulError);
       } finally {
         setFilleulsLoading(false);
+      }
+
+      // Charger les courses du chauffeur
+      try {
+        setCoursesLoading(true);
+        const coursesRes = await SERVICE_COURSE.getByDriver(matricule);
+        setDriverCourses(coursesRes.data || []);
+      } catch (coursesError) {
+        console.log("Courses non disponibles:", coursesError);
+      } finally {
+        setCoursesLoading(false);
       }
     } catch (error: unknown) {
       console.error("Erreur chargement chauffeur:", error);
@@ -530,6 +546,91 @@ export default function ChauffeurDetails() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Statistiques Courses */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-900 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon icon="mdi:chart-bar" className="text-yellow-400" />
+                Statistiques des courses
+              </h3>
+            </div>
+            {coursesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600"></div>
+              </div>
+            ) : (
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Icon icon="mdi:car-multiple" className="text-2xl text-blue-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-800">{driverCourses.length}</p>
+                    <p className="text-xs text-gray-500 font-medium">Total courses</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Icon icon="mdi:check-circle" className="text-2xl text-green-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-green-700">
+                      {driverCourses.filter(c => c.status === "DONE").length}
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium">Terminees</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Icon icon="mdi:close-circle" className="text-2xl text-red-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-700">
+                      {driverCourses.filter(c => c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED").length}
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium">Annulees / Refusees</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Icon icon="mdi:clock-outline" className="text-2xl text-yellow-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-yellow-700">
+                      {driverCourses.filter(c => c.status === "PENDING" || c.status === "IN_PROGRESS").length}
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium">En cours / Attente</p>
+                  </div>
+                </div>
+
+                {/* Taux de completion */}
+                {driverCourses.length > 0 && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-bold text-gray-700">Taux de completion</p>
+                      <p className="text-sm font-bold text-green-600">
+                        {Math.round((driverCourses.filter(c => c.status === "DONE").length / driverCourses.length) * 100)}%
+                      </p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.round((driverCourses.filter(c => c.status === "DONE").length / driverCourses.length) * 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Revenu total */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <Icon icon="mdi:cash-multiple" className="text-2xl text-yellow-600" />
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Revenu total</p>
+                      <p className="text-xl font-bold text-gray-800">
+                        {driverCourses.filter(c => c.status === "DONE").reduce((sum, c) => sum + c.price, 0).toLocaleString("fr-FR")} FCFA
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

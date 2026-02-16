@@ -226,6 +226,14 @@ const getStats = async () => {
   return res.data;
 };
 
+// Statistiques d'un chauffeur
+const getDriverStats = async (driverId: number) => {
+  const res = await Axios.get(
+    `booking_service/bookings/statistics/driver/${driverId}`
+  );
+  return res.data;
+};
+
 // Annuler une course
 const cancel = async (courseId: string, reason: string) => {
   const res = await Axios.put<{ message: string; status: number; data: ApiCourse }>(
@@ -334,6 +342,7 @@ export const SERVICE_COURSE = {
   getAll,
   getOne,
   getStats,
+  getDriverStats,
   cancel,
   assignDriver,
   startRide,
