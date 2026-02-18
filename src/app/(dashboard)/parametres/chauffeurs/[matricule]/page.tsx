@@ -1188,7 +1188,7 @@ export default function ChauffeurDetails() {
                   <option value="" className="text-gray-500">Selectionner un type</option>
                   {documentTypes.map((type) => (
                     <option key={type.id} value={type.id} className="text-gray-800">
-                      {type.name} {type.isRequired && "(Requis)"}
+                      {type.title || type.name} {type.isRequired && "(Requis)"}
                     </option>
                   ))}
                 </select>

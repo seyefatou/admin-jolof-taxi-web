@@ -4,6 +4,7 @@ export type DocumentType = {
   id: number;
   code: string;
   name: string;
+  title: string;
   description: string | null;
   isRequired: boolean;
 };
