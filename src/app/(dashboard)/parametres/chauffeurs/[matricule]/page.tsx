@@ -50,6 +50,8 @@ export default function ChauffeurDetails() {
   // Statistiques courses
   const [driverCourses, setDriverCourses] = useState<CourseProps[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesPage, setCoursesPage] = useState(1);
+  const coursesPerPage = 10;
 
   const loadData = async () => {
     try {
@@ -584,7 +586,7 @@ export default function ChauffeurDetails() {
                       <Icon icon="mdi:close-circle" className="text-2xl text-red-600" />
                     </div>
                     <p className="text-2xl font-bold text-red-700">
-                      {driverCourses.filter(c => c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED").length}
+                      {driverCourses.filter(c => c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER").length}
                     </p>
                     <p className="text-xs text-gray-500 font-medium">Annulees / Refusees</p>
                   </div>
@@ -973,86 +975,142 @@ export default function ChauffeurDetails() {
               <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-300 border-t-gray-600"></div>
             </div>
           ) : driverCourses.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-200">
-                    <th className="px-6 py-3">Course</th>
-                    <th className="px-6 py-3">Client</th>
-                    <th className="px-6 py-3">Trajet</th>
-                    <th className="px-6 py-3">Statut</th>
-                    <th className="px-6 py-3">Prix</th>
-                    <th className="px-6 py-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {driverCourses.map((course) => {
-                    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-                      DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
-                      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
-                      ACCEPTED: { bg: "bg-cyan-100", text: "text-cyan-700", label: "Acceptee" },
-                      DRIVER_IN_PROGRESS: { bg: "bg-indigo-100", text: "text-indigo-700", label: "Chauffeur en route" },
-                      IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
-                      CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
-                      CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
-                      CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
-                    };
-                    const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-200">
+                      <th className="px-6 py-3">Course</th>
+                      <th className="px-6 py-3">Client</th>
+                      <th className="px-6 py-3">Trajet</th>
+                      <th className="px-6 py-3">Statut</th>
+                      <th className="px-6 py-3">Prix</th>
+                      <th className="px-6 py-3">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {driverCourses.slice((coursesPage - 1) * coursesPerPage, coursesPage * coursesPerPage).map((course) => {
+                      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+                        DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
+                        PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
+                        ACCEPTED: { bg: "bg-cyan-100", text: "text-cyan-700", label: "Acceptee" },
+                        DRIVER_IN_PROGRESS: { bg: "bg-indigo-100", text: "text-indigo-700", label: "Chauffeur en route" },
+                        IN_PROGRESS: { bg: "bg-blue-100", text: "text-blue-700", label: "En cours" },
+                        CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
+                        CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
+                        CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
+                      };
+                      const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
 
-                    return (
-                      <tr
-                        key={course.id}
-                        onClick={() => router.push(`/reservations/reservations/${course.code_booking}`)}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-gray-800">#{course.code_booking}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 text-xs font-bold">
-                              {course.customer.name?.charAt(0) || "?"}
+                      return (
+                        <tr
+                          key={course.id}
+                          onClick={() => router.push(`/reservations/reservations/${course.code_booking}`)}
+                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-semibold text-gray-800">#{course.code_booking}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 text-xs font-bold">
+                                {course.customer.name?.charAt(0) || "?"}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{course.customer.name}</p>
+                                <p className="text-xs text-gray-400">{course.customer.phone}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-800">{course.customer.name}</p>
-                              <p className="text-xs text-gray-400">{course.customer.phone}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-xs text-gray-600 max-w-[200px]">
+                              <p className="truncate flex items-center gap-1">
+                                <Icon icon="mdi:map-marker" className="text-green-500 flex-shrink-0" />
+                                {course.pickup_location.address || "N/A"}
+                              </p>
+                              <p className="truncate flex items-center gap-1 mt-0.5">
+                                <Icon icon="mdi:map-marker" className="text-red-500 flex-shrink-0" />
+                                {course.dropoff_location.address || "N/A"}
+                              </p>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs text-gray-600 max-w-[200px]">
-                            <p className="truncate flex items-center gap-1">
-                              <Icon icon="mdi:map-marker" className="text-green-500 flex-shrink-0" />
-                              {course.pickup_location.address || "N/A"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
+                              {sc.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-semibold text-gray-800">{course.price.toLocaleString()} FCFA</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-xs text-gray-500">
+                              {new Date(course.created_at).toLocaleDateString("fr-FR")}
                             </p>
-                            <p className="truncate flex items-center gap-1 mt-0.5">
-                              <Icon icon="mdi:map-marker" className="text-red-500 flex-shrink-0" />
-                              {course.dropoff_location.address || "N/A"}
+                            <p className="text-xs text-gray-400">
+                              {new Date(course.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                             </p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
-                            {sc.label}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-gray-800">{course.price.toLocaleString()} FCFA</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-xs text-gray-500">
-                            {new Date(course.created_at).toLocaleDateString("fr-FR")}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {new Date(course.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {driverCourses.length > coursesPerPage && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500">
+                    {(coursesPage - 1) * coursesPerPage + 1} - {Math.min(coursesPage * coursesPerPage, driverCourses.length)} sur {driverCourses.length} courses
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCoursesPage(1)}
+                      disabled={coursesPage === 1}
+                      className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Icon icon="mdi:chevron-double-left" className="text-lg" />
+                    </button>
+                    <button
+                      onClick={() => setCoursesPage(p => p - 1)}
+                      disabled={coursesPage === 1}
+                      className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Icon icon="mdi:chevron-left" className="text-lg" />
+                    </button>
+                    {Array.from({ length: Math.ceil(driverCourses.length / coursesPerPage) }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === Math.ceil(driverCourses.length / coursesPerPage) || Math.abs(p - coursesPage) <= 1)
+                      .map((p, idx, arr) => (
+                        <span key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-gray-400 px-1">...</span>}
+                          <button
+                            onClick={() => setCoursesPage(p)}
+                            className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                              p === coursesPage ? "bg-gray-900 text-white" : "hover:bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        </span>
+                      ))}
+                    <button
+                      onClick={() => setCoursesPage(p => p + 1)}
+                      disabled={coursesPage === Math.ceil(driverCourses.length / coursesPerPage)}
+                      className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Icon icon="mdi:chevron-right" className="text-lg" />
+                    </button>
+                    <button
+                      onClick={() => setCoursesPage(Math.ceil(driverCourses.length / coursesPerPage))}
+                      disabled={coursesPage === Math.ceil(driverCourses.length / coursesPerPage)}
+                      className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Icon icon="mdi:chevron-double-right" className="text-lg" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <Icon icon="mdi:car-clock" className="text-6xl mx-auto mb-4 text-gray-300" />
