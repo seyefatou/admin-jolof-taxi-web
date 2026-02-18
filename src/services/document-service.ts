@@ -71,7 +71,7 @@ const addDocument = async (data: AddDocumentData) => {
   const formData = new FormData();
   formData.append("driverMatricule", data.driverMatricule);
   formData.append("documentTypeId", data.documentTypeId.toString());
-  formData.append("file", data.file);
+  formData.append("frontImage", data.file);
   if (data.expiryDate) {
     formData.append("expiryDate", data.expiryDate);
   }
