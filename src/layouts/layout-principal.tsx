@@ -69,7 +69,7 @@ export const LayoutGlobal: React.FC<LayoutGlobalProps> = ({ children }) => {
 
       {/* Contenu principal */}
       <div
-        className={`flex flex-col flex-1 transition-all duration-500 ${
+        className={`flex flex-col flex-1 min-w-0 transition-all duration-500 ${
           isMobile ? "ml-0" : menuPetit ? "ml-24" : "ml-60"
         }`}
       >
@@ -77,8 +77,8 @@ export const LayoutGlobal: React.FC<LayoutGlobalProps> = ({ children }) => {
         <Header menuPetit={menuPetit} setMenuPetit={setMenuPetit} />
 
         {/* Zone de contenu principal */}
-        <main className="flex-1 p-4 mt-16 transition-all duration-500 bg-white md:p-6">
-          <div className="w-full">{children}</div>
+        <main className="flex-1 p-4 mt-16 transition-all duration-500 bg-white md:p-6 overflow-x-hidden">
+          <div className="w-full min-w-0">{children}</div>
         </main>
       </div>
     </div>

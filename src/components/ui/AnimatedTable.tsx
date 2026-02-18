@@ -268,7 +268,7 @@ export const TableContainer: React.FC<{
   className?: string;
 }> = ({ children, className = "" }) => {
   return (
-    <div className={`bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden ${className}`}>
+    <div className={`bg-white border border-gray-200 rounded-2xl shadow-lg overflow-x-auto ${className}`}>
       {children}
     </div>
   );
