@@ -1183,11 +1183,11 @@ export default function ChauffeurDetails() {
                   required
                   value={uploadData.documentTypeId}
                   onChange={(e) => setUploadData({ ...uploadData, documentTypeId: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg text-gray-800 bg-white"
                 >
-                  <option value="">Selectionner un type</option>
+                  <option value="" className="text-gray-500">Selectionner un type</option>
                   {documentTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
+                    <option key={type.id} value={type.id} className="text-gray-800">
                       {type.name} {type.isRequired && "(Requis)"}
                     </option>
                   ))}
@@ -1204,7 +1204,7 @@ export default function ChauffeurDetails() {
                     required
                     accept="image/*,.pdf"
                     onChange={(e) => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:font-semibold"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-gray-800 bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:font-semibold"
                   />
                 </div>
               </div>
@@ -1217,7 +1217,7 @@ export default function ChauffeurDetails() {
                   type="date"
                   value={uploadData.expiryDate}
                   onChange={(e) => setUploadData({ ...uploadData, expiryDate: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg text-gray-800 bg-white"
                 />
               </div>
 
