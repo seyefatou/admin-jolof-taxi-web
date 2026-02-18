@@ -23,6 +23,7 @@ export default function ChauffeurDetails() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadData, setUploadData] = useState({
     documentTypeId: "",
+    number: "",
     file: null as File | null,
     expiryDate: "",
   });
@@ -111,16 +112,19 @@ export default function ChauffeurDetails() {
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadData.file || !uploadData.documentTypeId) {
+    if (!uploadData.file || !uploadData.documentTypeId || !uploadData.number.trim()) {
       toast.error("Veuillez remplir tous les champs requis");
       return;
     }
 
+    if (!chauffeur) return;
+
     setUploading(true);
     try {
       const res = await SERVICE_DOCUMENT.addDocument({
-        driverMatricule: matricule,
+        driverId: chauffeur.id,
         documentTypeId: parseInt(uploadData.documentTypeId),
+        number: uploadData.number.trim(),
         file: uploadData.file,
         expiryDate: uploadData.expiryDate || undefined,
       });
@@ -128,7 +132,7 @@ export default function ChauffeurDetails() {
       if (res.status === 200 || res.status === 201) {
         toast.success("Document ajoute avec succes");
         setShowUploadModal(false);
-        setUploadData({ documentTypeId: "", file: null, expiryDate: "" });
+        setUploadData({ documentTypeId: "", number: "", file: null, expiryDate: "" });
         loadData();
       } else {
         toast.error(res.message || "Erreur lors de l'ajout du document");
@@ -1192,6 +1196,20 @@ export default function ChauffeurDetails() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Numero du document <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: AB-123456"
+                  value={uploadData.number}
+                  onChange={(e) => setUploadData({ ...uploadData, number: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg text-gray-800 bg-white"
+                />
               </div>
 
               <div>

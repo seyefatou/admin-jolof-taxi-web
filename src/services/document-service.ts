@@ -21,8 +21,9 @@ export type DriverDocument = {
 };
 
 export type AddDocumentData = {
-  driverMatricule: string;
+  driverId: number;
   documentTypeId: number;
+  number: string;
   file: File;
   expiryDate?: string;
 };
@@ -69,8 +70,10 @@ const getDriverDocuments = async (matricule: string) => {
 // Ajouter un document
 const addDocument = async (data: AddDocumentData) => {
   const formData = new FormData();
-  formData.append("driverMatricule", data.driverMatricule);
+  formData.append("driverId", data.driverId.toString());
   formData.append("documentTypeId", data.documentTypeId.toString());
+  formData.append("number", data.number);
+  formData.append("status", "PENDING");
   formData.append("frontImage", data.file);
   if (data.expiryDate) {
     formData.append("expiryDate", data.expiryDate);
