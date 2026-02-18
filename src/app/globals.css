@@ -2,10 +2,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Dancing+Script:wght@400..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 @import "tailwindcss";
 
-:root {
+:root, html {
   --background: #ffffff;
   --foreground: #171717;
-  color-scheme: light;
+  color-scheme: light !important;
+}
+
+/* Force dark text on native form elements (OS dark mode fix) */
+select,
+select option,
+input,
+textarea {
+  color: #1f2937;
+  background-color: #ffffff;
 }
 
 @theme inline {
