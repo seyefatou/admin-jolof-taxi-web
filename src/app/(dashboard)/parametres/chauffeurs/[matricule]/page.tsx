@@ -25,6 +25,7 @@ export default function ChauffeurDetails() {
     documentTypeId: "",
     number: "",
     file: null as File | null,
+    backFile: null as File | null,
     expiryDate: "",
   });
   const [uploading, setUploading] = useState(false);
@@ -53,6 +54,17 @@ export default function ChauffeurDetails() {
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesPage, setCoursesPage] = useState(1);
   const coursesPerPage = 10;
+
+  // Determine si le type de document selectionne necessite un verso (recto/verso)
+  const needsBackImage = (typeId: string) => {
+    if (!typeId) return false;
+    const docType = documentTypes.find((t) => t.id.toString() === typeId);
+    if (!docType) return false;
+    const label = (docType.title || docType.name || docType.code || "").toLowerCase();
+    // Permis de conduire et Carte grise = recto/verso obligatoire
+    // Livret = recto seulement
+    return label.includes("permis") || label.includes("carte grise") || label.includes("car_registration") || label.includes("permit");
+  };
 
   const loadData = async () => {
     try {
@@ -117,6 +129,11 @@ export default function ChauffeurDetails() {
       return;
     }
 
+    if (needsBackImage(uploadData.documentTypeId) && !uploadData.backFile) {
+      toast.error("Le verso est obligatoire pour ce type de document");
+      return;
+    }
+
     if (!chauffeur) return;
 
     setUploading(true);
@@ -126,13 +143,14 @@ export default function ChauffeurDetails() {
         documentTypeId: parseInt(uploadData.documentTypeId),
         number: uploadData.number.trim(),
         file: uploadData.file,
+        backFile: uploadData.backFile || undefined,
         expiryDate: uploadData.expiryDate || undefined,
       });
 
       if (res.status === 200 || res.status === 201) {
         toast.success("Document ajoute avec succes");
         setShowUploadModal(false);
-        setUploadData({ documentTypeId: "", number: "", file: null, expiryDate: "" });
+        setUploadData({ documentTypeId: "", number: "", file: null, backFile: null, expiryDate: "" });
         loadData();
       } else {
         toast.error(res.message || "Erreur lors de l'ajout du document");
@@ -1186,7 +1204,7 @@ export default function ChauffeurDetails() {
                 <select
                   required
                   value={uploadData.documentTypeId}
-                  onChange={(e) => setUploadData({ ...uploadData, documentTypeId: e.target.value })}
+                  onChange={(e) => setUploadData({ ...uploadData, documentTypeId: e.target.value, backFile: null })}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-lg text-gray-800 bg-white"
                 >
                   <option value="" className="text-gray-500">Selectionner un type</option>
@@ -1214,7 +1232,7 @@ export default function ChauffeurDetails() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Fichier <span className="text-red-500">*</span>
+                  {needsBackImage(uploadData.documentTypeId) ? "Recto" : "Fichier"} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -1226,6 +1244,23 @@ export default function ChauffeurDetails() {
                   />
                 </div>
               </div>
+
+              {needsBackImage(uploadData.documentTypeId) && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Verso <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      required
+                      accept="image/*,.pdf"
+                      onChange={(e) => setUploadData({ ...uploadData, backFile: e.target.files?.[0] || null })}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-4 focus:ring-gray-100 outline-none transition-all text-gray-800 bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:font-semibold"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">

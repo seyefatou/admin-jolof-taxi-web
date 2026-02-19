@@ -25,6 +25,7 @@ export type AddDocumentData = {
   documentTypeId: number;
   number: string;
   file: File;
+  backFile?: File;
   expiryDate?: string;
 };
 
@@ -75,6 +76,9 @@ const addDocument = async (data: AddDocumentData) => {
   formData.append("number", data.number);
   formData.append("status", "PENDING");
   formData.append("frontImage", data.file);
+  if (data.backFile) {
+    formData.append("backImage", data.backFile);
+  }
   if (data.expiryDate) {
     formData.append("expiryDate", data.expiryDate);
   }
