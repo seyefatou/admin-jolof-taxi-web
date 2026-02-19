@@ -56,14 +56,16 @@ export default function ChauffeurDetails() {
   const coursesPerPage = 10;
 
   // Determine si le type de document selectionne necessite un verso (recto/verso)
+  // Seul le livret est recto uniquement, tout le reste est recto/verso
   const needsBackImage = (typeId: string) => {
     if (!typeId) return false;
     const docType = documentTypes.find((t) => t.id.toString() === typeId);
     if (!docType) return false;
     const label = (docType.title || docType.name || docType.code || "").toLowerCase();
-    // Permis de conduire et Carte grise = recto/verso obligatoire
-    // Livret = recto seulement
-    return label.includes("permis") || label.includes("carte grise") || label.includes("car_registration") || label.includes("permit");
+    // Livret / booklet = recto seulement
+    if (label.includes("livret") || label.includes("booklet")) return false;
+    // Tout le reste (permis, carte grise, carte d'identite, etc.) = recto/verso
+    return true;
   };
 
   const loadData = async () => {
