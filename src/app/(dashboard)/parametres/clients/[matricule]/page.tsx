@@ -6,6 +6,7 @@ import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "@/components/ConfirmModal";
+import Pagination from "@/components/Pagination";
 import { SERVICE_CLIENT, ClientProps } from "@/services/client-service";
 import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 
@@ -21,6 +22,10 @@ export default function ClientDetails() {
   // Courses du client
   const [clientCourses, setClientCourses] = useState<CourseProps[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
+
+  // Pagination historique
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Confirm modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -147,6 +152,18 @@ export default function ClientDetails() {
     };
 
     return configs[confirmAction.type];
+  };
+
+  const totalPages = Math.ceil(clientCourses.length / itemsPerPage);
+  const paginatedCourses = clientCourses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => setCurrentPage(page);
+  const handleItemsPerPageChange = (count: number) => {
+    setItemsPerPage(count);
+    setCurrentPage(1);
   };
 
   const getStatusBadge = (status: string) => {
@@ -500,7 +517,7 @@ export default function ClientDetails() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {clientCourses.map((course) => {
+                  {paginatedCourses.map((course) => {
                     const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
                       DONE: { bg: "bg-green-100", text: "text-green-700", label: "Terminee" },
                       PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "En attente" },
@@ -558,6 +575,16 @@ export default function ClientDetails() {
                   })}
                 </tbody>
               </table>
+              {clientCourses.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={clientCourses.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
+              )}
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
