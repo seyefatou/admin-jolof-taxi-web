@@ -170,6 +170,13 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
       icon: "mdi:finance",
       isActive: isPathActive(`/finance`),
     },
+    // {
+    //   path: `/service-courses`,
+    //   text: "Service Courses",
+    //   subText: "Eco, Confort, Confort+",
+    //   icon: "ic:round-miscellaneous-services",
+    //   isActive: isPathActive(`/service-courses`),
+    // },
     {
       path: `/settings`,
       text: "Parametres",

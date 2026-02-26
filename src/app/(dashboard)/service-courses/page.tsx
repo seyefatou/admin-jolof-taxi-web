@@ -22,11 +22,13 @@ export default function ServiceCoursesPage() {
   const [modalAdd, setModalAdd] = useState(false);
   const [modalEdit, setModalEdit] = useState(false);
   const [nom, setNom] = useState("");
+  const [priceKm, setPriceKm] = useState("");
   const [priceRate, setPriceRate] = useState("");
   const [priceMn, setPriceMn] = useState("");
   const [img, setImg] = useState<File | null>(null);
   const [imgEdit, setImgEdit] = useState<File | string | null>(null);
   const [idEdit, setIdEdit] = useState<number>(0);
+  const [statusEdit, setStatusEdit] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [tarifs, setTarifs] = useState<Tarif[]>([
     { minKm: 0, maxKm: 10, pricePerKm: 140 },
@@ -52,10 +54,12 @@ export default function ServiceCoursesPage() {
 
   const resetForm = () => {
     setNom("");
+    setPriceKm("");
     setPriceRate("");
     setPriceMn("");
     setImg(null);
     setImgEdit(null);
+    setStatusEdit(true);
     setIdEdit(0);
     setTarifs([{ minKm: 0, maxKm: 10, pricePerKm: 140 }]);
   };
@@ -93,9 +97,11 @@ export default function ServiceCoursesPage() {
       const res = await SERVICE_VEHICULES.getTypeOne(id);
       if (res.status === 200) {
         setNom(res.data.type);
+        setPriceKm(String(res.data.priceKm || 0));
         setPriceRate(res.data.ratePrice.toString());
         setPriceMn(res.data.priceMn.toString());
         setImgEdit(res.data.image);
+        setStatusEdit(res.data.status);
         setTarifs(res.data.tarifs || [{ minKm: 0, maxKm: 10, pricePerKm: 140 }]);
         setIdEdit(id);
         setModalEdit(true);
@@ -158,7 +164,11 @@ export default function ServiceCoursesPage() {
     formData.append("type", nom);
     formData.append("ratePrice", priceRate);
     formData.append("priceMn", priceMn);
-    formData.append("tarifs", JSON.stringify(tarifs));
+    tarifs.forEach((tarif, index) => {
+      formData.append(`tarifs[${index}][minKm]`, String(tarif.minKm));
+      formData.append(`tarifs[${index}][maxKm]`, String(tarif.maxKm));
+      formData.append(`tarifs[${index}][pricePerKm]`, String(tarif.pricePerKm));
+    });
     if (img) formData.append("image", img);
 
     try {
@@ -185,8 +195,10 @@ export default function ServiceCoursesPage() {
 
     const formData = new FormData();
     formData.append("type", nom);
+    formData.append("priceKm", priceKm);
     formData.append("ratePrice", priceRate);
     formData.append("priceMn", priceMn);
+    formData.append("status", String(statusEdit));
     formData.append("tarifs", JSON.stringify(tarifs));
     if (imgEdit && typeof imgEdit !== "string") {
       formData.append("image", imgEdit);

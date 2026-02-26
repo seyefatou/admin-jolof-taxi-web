@@ -738,6 +738,9 @@ function VehiculeTab() {
     image: null as File | null,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [tarifs, setTarifs] = useState<{ minKm: number; maxKm: number; pricePerKm: number }[]>([
+    { minKm: 0, maxKm: 10, pricePerKm: 140 },
+  ]);
 
   const loadTypes = async () => {
     try {
@@ -759,6 +762,7 @@ function VehiculeTab() {
     setFormData({ type: "", priceKm: "", ratePrice: "", priceMn: "", status: true, image: null });
     setImagePreview(null);
     setEditingType(null);
+    setTarifs([{ minKm: 0, maxKm: 10, pricePerKm: 140 }]);
   };
 
   const openAddModal = () => { resetForm(); setShowModal(true); };
@@ -774,6 +778,7 @@ function VehiculeTab() {
       image: null,
     });
     setImagePreview(vt.image || null);
+    setTarifs(vt.tarifs && vt.tarifs.length > 0 ? vt.tarifs : [{ minKm: 0, maxKm: 10, pricePerKm: 140 }]);
     setShowModal(true);
   };
 
@@ -800,6 +805,7 @@ function VehiculeTab() {
       fd.append("ratePrice", formData.ratePrice);
       fd.append("priceMn", formData.priceMn);
       fd.append("status", String(formData.status));
+      fd.append("tarifs", JSON.stringify(tarifs));
       if (formData.image) fd.append("image", formData.image);
 
       let res;
@@ -887,7 +893,7 @@ function VehiculeTab() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowModal(false); resetForm(); }} />
-          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -905,72 +911,104 @@ function VehiculeTab() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Nom du type</label>
-                <div className="relative">
-                  <Icon icon="mdi:car" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} placeholder="Ex: Confort, Standard, VIP..." className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all" />
-                </div>
-              </div>
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Colonne 1 - Infos de base */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Nom du type</label>
+                    <div className="relative">
+                      <Icon icon="mdi:car" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input type="text" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} placeholder="Ex: Confort, Standard, VIP..." className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all" />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Image du vehicule</label>
-                <div className="flex items-center gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Prix moyen du Tarif (CFA)</label>
+                    <input type="number" value={formData.ratePrice} onChange={(e) => setFormData({ ...formData, ratePrice: e.target.value })} placeholder="500" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Prix par minute (CFA)</label>
+                    <input type="number" value={formData.priceMn} onChange={(e) => setFormData({ ...formData, priceMn: e.target.value })} placeholder="50" className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all" />
+                  </div>
+
+                  {/* Image upload */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Image du vehicule</label>
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-yellow-400 transition-all">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Icon icon="mdi:cloud-upload" className="text-3xl text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-500"><span className="font-semibold">Cliquer pour telecharger</span></p>
+                        <p className="text-xs text-gray-400">PNG, JPG (MAX. 800x400px)</p>
+                      </div>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                    </label>
+                  </div>
+
                   {imagePreview && (
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => { setImagePreview(null); setFormData({ ...formData, image: null }); }} className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full">
-                        <Icon icon="mdi:close" className="text-xs" />
+                    <div className="relative">
+                      <div className="bg-yellow-100 rounded-xl p-4 flex items-center justify-center h-32">
+                        <img src={imagePreview} alt="Apercu" className="max-h-full object-contain" />
+                      </div>
+                      <button type="button" onClick={() => { setImagePreview(null); setFormData({ ...formData, image: null }); }} className="mt-2 w-full py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 flex items-center justify-center gap-2">
+                        <Icon icon="mdi:delete" /> Supprimer l&apos;image
                       </button>
                     </div>
                   )}
-                  <label className="flex-1 cursor-pointer">
-                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-yellow-400 hover:bg-yellow-50 transition-all">
-                      <Icon icon="mdi:cloud-upload" className="text-2xl text-gray-400" />
-                      <span className="text-sm text-gray-500">{imagePreview ? "Changer l'image" : "Cliquez pour uploader"}</span>
+
+                  {/* Statut */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Icon icon={formData.status ? "mdi:check-circle" : "mdi:close-circle"} className={`text-xl ${formData.status ? "text-green-500" : "text-gray-400"}`} />
+                      <div>
+                        <span className="block text-sm font-semibold text-gray-700">Statut</span>
+                        <span className="text-xs text-gray-500">{formData.status ? "Visible par les clients" : "Masque"}</span>
+                      </div>
                     </div>
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                  </label>
+                    <button type="button" onClick={() => setFormData({ ...formData, status: !formData.status })} className={`relative w-12 h-6 rounded-full transition-all duration-300 ${formData.status ? "bg-green-500" : "bg-gray-300"}`}>
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${formData.status ? "left-6" : "left-0.5"}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Colonne 2-3 - Tarifs par plage de km */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tarifs par plage de kilometres</label>
+                  <div className="border-2 border-gray-200 rounded-xl p-4">
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                      {tarifs.map((tarif, index) => (
+                        <div key={index} className="grid grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-500">De (km)</label>
+                            <input type="number" value={tarif.minKm} onChange={(e) => { const t = [...tarifs]; t[index].minKm = parseInt(e.target.value) || 0; setTarifs(t); }} className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none transition-all" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">A (km)</label>
+                            <input type="number" value={tarif.maxKm} onChange={(e) => { const t = [...tarifs]; t[index].maxKm = parseInt(e.target.value) || 0; setTarifs(t); }} className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none transition-all" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500">Prix/km (CFA)</label>
+                            <input type="number" value={tarif.pricePerKm} onChange={(e) => { const t = [...tarifs]; t[index].pricePerKm = parseInt(e.target.value) || 0; setTarifs(t); }} className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-yellow-400 outline-none transition-all" />
+                          </div>
+                          <div className="flex items-end">
+                            <button type="button" onClick={() => { if (tarifs.length > 1) setTarifs(tarifs.filter((_, i) => i !== index)); else toast.warning("Vous devez avoir au moins une plage tarifaire"); }} className="w-full px-3 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 flex items-center justify-center gap-1">
+                              <Icon icon="mdi:delete" /> Suppr.
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => { const last = tarifs[tarifs.length - 1]; setTarifs([...tarifs, { minKm: last?.maxKm || 0, maxKm: (last?.maxKm || 0) + 10, pricePerKm: last?.pricePerKm || 140 }]); }} className="w-full py-2 mt-4 bg-yellow-300 text-black rounded-xl hover:bg-yellow-400 font-medium">
+                      + Ajouter une plage tarifaire
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  <Icon icon="mdi:cash" className="inline mr-1 text-yellow-500" /> Tarification
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1.5">Prix de base (CFA)</label>
-                    <input type="number" value={formData.ratePrice} onChange={(e) => setFormData({ ...formData, ratePrice: e.target.value })} placeholder="500" className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all text-center font-semibold" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1.5">Prix/km (CFA)</label>
-                    <input type="number" value={formData.priceKm} onChange={(e) => setFormData({ ...formData, priceKm: e.target.value })} placeholder="100" className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all text-center font-semibold" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1.5">Prix/min (CFA)</label>
-                    <input type="number" value={formData.priceMn} onChange={(e) => setFormData({ ...formData, priceMn: e.target.value })} placeholder="50" className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all text-center font-semibold" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex items-center gap-3">
-                  <Icon icon={formData.status ? "mdi:check-circle" : "mdi:close-circle"} className={`text-xl ${formData.status ? "text-green-500" : "text-gray-400"}`} />
-                  <div>
-                    <span className="block text-sm font-semibold text-gray-700">Statut</span>
-                    <span className="text-xs text-gray-500">{formData.status ? "Visible par les clients" : "Masque"}</span>
-                  </div>
-                </div>
-                <button type="button" onClick={() => setFormData({ ...formData, status: !formData.status })} className={`relative w-12 h-6 rounded-full transition-all duration-300 ${formData.status ? "bg-green-500" : "bg-gray-300"}`}>
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${formData.status ? "left-6" : "left-0.5"}`} />
-                </button>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 transition-all">Annuler</button>
-                <button type="submit" disabled={saving} className="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-xl font-semibold text-black hover:from-yellow-400 hover:to-yellow-500 transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+              <div className="flex gap-3 pt-6 justify-end">
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="px-6 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 transition-all">Annuler</button>
+                <button type="submit" disabled={saving} className="px-6 py-3 bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-xl font-semibold text-black hover:from-yellow-400 hover:to-yellow-500 transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-black/20 border-t-black"></div>Enregistrement...</>) : (<><Icon icon={editingType ? "mdi:check" : "mdi:plus"} className="text-lg" />{editingType ? "Mettre a jour" : "Creer le type"}</>)}
                 </button>
               </div>
