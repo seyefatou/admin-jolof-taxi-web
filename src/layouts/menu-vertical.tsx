@@ -231,11 +231,11 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
                 <div className="relative mb-3">
                   <div className="absolute inset-0 bg-yellow-500 rounded-full opacity-30 animate-pulse"></div>
                   <Image
-                    src="/logos/jolof.svg"
+                    src="/logos/jolof.jpeg"
                     alt="Jolof Taxi Logo"
                     width={56}
                     height={56}
-                    className="relative z-10 w-14 h-14"
+                    className="relative z-10 w-14 h-14 rounded-full border-2 border-white object-cover object-center"
                   />
                 </div>
 

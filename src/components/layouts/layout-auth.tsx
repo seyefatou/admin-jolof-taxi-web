@@ -31,18 +31,18 @@ export const LayoutAuth: FC<LayoutAuthProps> = ({ children }) => {
             </div>
 
             <div
-              className={`relative border border-black rounded-full transition-all duration-1000 transform ${
+              className={`relative rounded-full transition-all duration-1000 transform ${
                 animate
                   ? "translate-y-0 opacity-100"
                   : "translate-y-10 opacity-0"
               }`}
             >
               <Image
-                src="/logos/jolof.svg"
+                src="/logos/jolof.jpeg"
                 alt="logo jolof"
                 width={300}
                 height={300}
-                className={`transition-transform duration-700 ease-in-out ${
+                className={`rounded-full border-4 border-yellow-300 object-cover object-center transition-transform duration-700 ease-in-out ${
                   animate ? "scale-100" : "scale-90"
                 }`}
               />

@@ -74,11 +74,11 @@ export default function ChangePassword() {
               <div>
                 <div className="text-center flex justify-center">
                   <Image
-                    src="/logos/jolof.svg"
+                    src="/logos/jolof.jpeg"
                     alt="logo jolof"
                     width={100}
                     height={100}
-                    className="mb-2"
+                    className="mb-2 rounded-full border-2 border-white object-cover object-center"
                   />
                 </div>
                 <h2 className="flex justify-center text-2xl font-medium text-black">
