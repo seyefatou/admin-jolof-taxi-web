@@ -394,7 +394,7 @@ export default function ClientDetails() {
                   <div className="bg-red-50 rounded-xl p-4 text-center">
                     <Icon icon="mdi:close-circle" className="text-3xl text-red-500 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-red-700">
-                      {clientCourses.filter(c => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_DRIVER").length}
+                      {clientCourses.filter(c => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED_BY_SYSTEM").length}
                     </p>
                     <p className="text-xs text-gray-500">Annulees</p>
                   </div>
@@ -527,6 +527,7 @@ export default function ClientDetails() {
                       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
                       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
                       CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
+                      CANCELED_BY_SYSTEM: { bg: "bg-gray-100", text: "text-gray-700", label: "Annulee systeme" },
                     };
                     const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
 

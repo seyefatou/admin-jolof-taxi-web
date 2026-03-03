@@ -71,6 +71,8 @@ function computeBookingStats(courses: CourseProps[]): BookingStats {
     } else if (s === "CANCELED_BY_DRIVER") {
       cancelledByDriver++;
       cancelled++;
+    } else if (s === "CANCELED_BY_SYSTEM") {
+      cancelled++;
     } else if (s === "CANCELED" || s === "CANCELLED") {
       cancelled++;
     } else if (s === "IN_PROGRESS" || s === "PROCESSING" || s === "PENDING" || s === "ACCEPTED" || s === "DRIVER_IN_PROGRESS") {

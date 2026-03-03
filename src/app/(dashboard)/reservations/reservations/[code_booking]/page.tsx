@@ -119,6 +119,7 @@ export default function CourseDetails() {
       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee", icon: "mdi:close-circle" },
       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee par client", icon: "mdi:account-cancel" },
       CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee par chauffeur", icon: "mdi:account-cancel" },
+      CANCELED_BY_SYSTEM: { bg: "bg-gray-100", text: "text-gray-700", label: "Annulee par systeme", icon: "mdi:robot" },
     };
     const config = statusConfig[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status, icon: "mdi:help-circle" };
     return (
@@ -374,7 +375,7 @@ export default function CourseDetails() {
           )}
 
           {/* Cancel Reason */}
-          {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER") && course.cancel_reason && (
+          {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER" || course.status === "CANCELED_BY_SYSTEM") && course.cancel_reason && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-red-800 mb-2 flex items-center gap-2">
                 <Icon icon="mdi:alert-circle" />
@@ -514,7 +515,7 @@ export default function CourseDetails() {
                 )}
 
                 {/* Course annulee */}
-                {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER") && (
+                {(course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER" || course.status === "CANCELED_BY_SYSTEM") && (
                   <div className="flex gap-3 relative">
                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 z-10">
                       <Icon icon="mdi:close-circle" className="text-red-600" />

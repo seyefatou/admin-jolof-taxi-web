@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -34,10 +35,17 @@ const GarageMap = dynamic(() => import("@/components/GarageMap"), {
 });
 
 export default function GaragesPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [listGarages, setListGarages] = useState<GaragesProps[]>([]);
   const [modalCreate, setModalCreate] = useState(false);
   const [modalEdit, setModalEdit] = useState(false);
+  const [modalActivate, setModalActivate] = useState(false);
+  const [modalSuccessCreate, setModalSuccessCreate] = useState(false);
+  const [createdGarageCode, setCreatedGarageCode] = useState("");
+  const [createdGarageName, setCreatedGarageName] = useState("");
+  const [activateCode, setActivateCode] = useState("");
+  const [activateSender, setActivateSender] = useState<"SMS" | "WHATSAPP">("SMS");
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
@@ -151,10 +159,12 @@ export default function GaragesPage() {
       );
 
       if (res.status === 201 || res.status === 200) {
-        toast.success("Garage ajoute avec succes");
         setModalCreate(false);
         resetForm();
         loadGarages();
+        setCreatedGarageCode(res.data.code);
+        setCreatedGarageName(res.data.name);
+        setModalSuccessCreate(true);
       } else if (res.status === 409) {
         showError(res.message, "Garage deja existant");
       } else if (res.status === 400) {
@@ -212,6 +222,40 @@ export default function GaragesPage() {
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || "Erreur lors de la modification";
+      showError(errorMessage, "Erreur");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleActivate = (code: string) => {
+    setActivateCode(code);
+    setActivateSender("SMS");
+    setModalActivate(true);
+  };
+
+  const executeActivate = async () => {
+    try {
+      setSubmitting(true);
+      const res = await SERVICE_GARAGES.activate(activateCode, activateSender);
+      if (res.status === 200 || res.status === 201) {
+        toast.success("Garage active avec succes. Les identifiants ont ete envoyes.");
+        setModalActivate(false);
+        loadGarages();
+      } else if (res.status === 409) {
+        setModalActivate(false);
+        setErrorPopup({
+          isOpen: true,
+          message: "Le compte partenaire de ce garage est deja active. Le responsable peut se connecter avec son numero de telephone et le mot de passe recu lors de la premiere activation.",
+          title: "Compte deja active",
+          type: "info",
+        });
+        loadGarages();
+      } else {
+        showError(res.message || "Erreur lors de l'activation", "Erreur");
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || "Erreur lors de l'activation";
       showError(errorMessage, "Erreur");
     } finally {
       setSubmitting(false);
@@ -432,6 +476,134 @@ export default function GaragesPage() {
       {modalCreate && renderModal(false)}
       {modalEdit && renderModal(true)}
 
+      {/* Modal succes creation */}
+      {modalSuccessCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 animate-fadeIn">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Icon icon="mdi:check-circle" className="text-5xl text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Garage cree avec succes !</h2>
+              <p className="text-gray-500 mb-2">
+                Le garage <span className="font-semibold text-gray-700">{createdGarageName}</span> a ete cree.
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
+                <div className="flex items-start gap-3">
+                  <Icon icon="mdi:information" className="text-yellow-600 text-xl mt-0.5 shrink-0" />
+                  <p className="text-sm text-yellow-800">
+                    Pour que le responsable puisse se connecter sur l&apos;interface partenaire,
+                    vous devez <strong>activer le garage</strong>. Il recevra ses identifiants
+                    de connexion (telephone + mot de passe) par SMS ou WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setModalSuccessCreate(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-100 font-medium transition-colors duration-200"
+                >
+                  Plus tard
+                </button>
+                <button
+                  onClick={() => {
+                    setModalSuccessCreate(false);
+                    setActivateCode(createdGarageCode);
+                    setActivateSender("SMS");
+                    setModalActivate(true);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-400 to-green-500 text-white font-semibold rounded-xl hover:from-green-500 hover:to-green-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-md"
+                >
+                  <Icon icon="mdi:send" />
+                  Activer maintenant
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'activation */}
+      {modalActivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 animate-fadeIn">
+            <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 border-b border-green-200">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-200 rounded-xl">
+                  <Icon icon="mdi:account-check" className="text-2xl text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Activer le garage</h2>
+                  <p className="text-sm text-gray-500">Creer le compte partenaire</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+                <div className="flex items-start gap-3">
+                  <Icon icon="mdi:account-key" className="text-blue-600 text-xl mt-0.5 shrink-0" />
+                  <p className="text-sm text-blue-800">
+                    L&apos;activation va <strong>creer un compte partenaire</strong> pour ce garage.
+                    Le responsable recevra son <strong>identifiant (numero de telephone)</strong> et
+                    son <strong>mot de passe</strong> par le canal choisi ci-dessous.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-700 mb-3">Canal d&apos;envoi des identifiants :</p>
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => setActivateSender("SMS")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 font-medium transition-all duration-200 ${
+                    activateSender === "SMS"
+                      ? "border-green-400 bg-green-50 text-green-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <Icon icon="mdi:message-text" className="text-xl" />
+                  SMS
+                </button>
+                <button
+                  onClick={() => setActivateSender("WHATSAPP")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 font-medium transition-all duration-200 ${
+                    activateSender === "WHATSAPP"
+                      ? "border-green-400 bg-green-50 text-green-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <Icon icon="mdi:whatsapp" className="text-xl" />
+                  WhatsApp
+                </button>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setModalActivate(false)}
+                  className="px-6 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-100 font-medium transition-colors duration-200"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={executeActivate}
+                  disabled={submitting}
+                  className="px-6 py-2.5 bg-gradient-to-r from-green-400 to-green-500 text-white font-semibold rounded-xl hover:from-green-500 hover:to-green-600 disabled:opacity-50 transition-all duration-200 flex items-center gap-2 shadow-md"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Activation...
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon="mdi:send" />
+                      Activer et envoyer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Popup d'erreur */}
       <ErrorPopup
         isOpen={errorPopup.isOpen}
@@ -573,12 +745,31 @@ export default function GaragesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <button
-                        onClick={() => handleEdit(garage.code)}
-                        className="p-2.5 bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-700 rounded-xl hover:from-yellow-200 hover:to-yellow-300 transition-all duration-200 hover:scale-110 shadow-sm"
-                      >
-                        <Icon icon="mdi:pencil" className="text-lg" />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => router.push(`/parametres/garages/${garage.code}`)}
+                          className="p-2.5 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 rounded-xl hover:from-blue-200 hover:to-blue-300 transition-all duration-200 hover:scale-110 shadow-sm"
+                          title="Voir details"
+                        >
+                          <Icon icon="mdi:eye" className="text-lg" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(garage.code)}
+                          className="p-2.5 bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-700 rounded-xl hover:from-yellow-200 hover:to-yellow-300 transition-all duration-200 hover:scale-110 shadow-sm"
+                          title="Modifier"
+                        >
+                          <Icon icon="mdi:pencil" className="text-lg" />
+                        </button>
+                        {!garage.status && (
+                          <button
+                            onClick={() => handleActivate(garage.code)}
+                            className="p-2.5 bg-gradient-to-r from-green-100 to-green-200 text-green-700 rounded-xl hover:from-green-200 hover:to-green-300 transition-all duration-200 hover:scale-110 shadow-sm"
+                            title="Activer"
+                          >
+                            <Icon icon="mdi:check-circle" className="text-lg" />
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                   </AnimatedTableRow>
                 ))

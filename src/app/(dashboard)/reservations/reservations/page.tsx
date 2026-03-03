@@ -52,6 +52,7 @@ export default function CoursesPage() {
     { value: "ALL_CANCELED", label: "Toutes les annulations", icon: "mdi:close-circle" },
     { value: "CANCELED_BY_CUSTOMER", label: "Annulee par client", icon: "mdi:account-cancel" },
     { value: "CANCELED_BY_DRIVER", label: "Annulee par chauffeur", icon: "mdi:account-cancel" },
+    { value: "CANCELED_BY_SYSTEM", label: "Annulee par systeme", icon: "mdi:robot" },
   ];
 
   const dateOptions = [
@@ -142,7 +143,7 @@ export default function CoursesPage() {
     // Filtre par status
     if (statusFilter === "ALL_CANCELED") {
       filtered = filtered.filter((course) =>
-        course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER"
+        course.status === "CANCELED" || course.status === "CANCELED_BY_CUSTOMER" || course.status === "CANCELED_BY_DRIVER" || course.status === "CANCELED_BY_SYSTEM"
       );
     } else if (statusFilter !== "ALL") {
       filtered = filtered.filter((course) => course.status === statusFilter);
@@ -292,6 +293,7 @@ export default function CoursesPage() {
       CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
       CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee par client" },
       CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee par chauffeur" },
+      CANCELED_BY_SYSTEM: { bg: "bg-gray-100", text: "text-gray-700", label: "Annulee par systeme" },
     };
     const config = statusConfig[status] || { bg: "bg-gray-100", text: "text-gray-700", label: status };
     return (
@@ -310,7 +312,7 @@ export default function CoursesPage() {
     done: coursesArray.filter((c) => c.status === "DONE").length,
     pending: coursesArray.filter((c) => c.status === "PENDING").length,
     inProgress: coursesArray.filter((c) => c.status === "IN_PROGRESS").length,
-    canceled: coursesArray.filter((c) => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_DRIVER").length,
+    canceled: coursesArray.filter((c) => c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED_BY_SYSTEM").length,
     revenue: coursesArray.filter((c) => c.status === "DONE").reduce((sum, c) => sum + c.price, 0),
   };
 

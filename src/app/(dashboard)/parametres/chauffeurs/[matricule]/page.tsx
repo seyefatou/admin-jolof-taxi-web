@@ -610,7 +610,7 @@ export default function ChauffeurDetails() {
                       <Icon icon="mdi:close-circle" className="text-2xl text-red-600" />
                     </div>
                     <p className="text-2xl font-bold text-red-700">
-                      {driverCourses.filter(c => c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER").length}
+                      {driverCourses.filter(c => c.status === "CANCELED_BY_DRIVER" || c.status === "CANCELED" || c.status === "CANCELED_BY_CUSTOMER" || c.status === "CANCELED_BY_SYSTEM").length}
                     </p>
                     <p className="text-xs text-gray-500 font-medium">Annulees / Refusees</p>
                   </div>
@@ -1023,6 +1023,7 @@ export default function ChauffeurDetails() {
                         CANCELED: { bg: "bg-red-100", text: "text-red-700", label: "Annulee" },
                         CANCELED_BY_CUSTOMER: { bg: "bg-orange-100", text: "text-orange-700", label: "Annulee client" },
                         CANCELED_BY_DRIVER: { bg: "bg-purple-100", text: "text-purple-700", label: "Annulee chauffeur" },
+                        CANCELED_BY_SYSTEM: { bg: "bg-gray-100", text: "text-gray-700", label: "Annulee systeme" },
                       };
                       const sc = statusConfig[course.status] || { bg: "bg-gray-100", text: "text-gray-700", label: course.status };
 

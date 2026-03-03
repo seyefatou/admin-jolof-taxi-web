@@ -11,6 +11,10 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Jolof Taxi - Admin",
   description: "Panneau d'administration Jolof Taxi",
+  icons: {
+    icon: "/logos/jolof.svg",
+    apple: "/logos/jolof.svg",
+  },
 };
 
 export default function RootLayout({
