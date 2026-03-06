@@ -88,8 +88,10 @@ export default function GaragesPage() {
       setLoading(true);
       const res = await SERVICE_GARAGES.getAll();
       setListGarages(res.data);
+      return res.data;
     } catch (error) {
       toast.error("Erreur lors de la recuperation des garages");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -159,11 +161,17 @@ export default function GaragesPage() {
       );
 
       if (res.status === 201 || res.status === 200) {
+        const createdName = res.data.name;
+        const createdPhone = phone;
         setModalCreate(false);
         resetForm();
-        loadGarages();
-        setCreatedGarageCode(res.data.code);
-        setCreatedGarageName(res.data.name);
+        setCreatedGarageName(createdName);
+        // Recharger la liste pour obtenir le code definitif du garage
+        const freshList = await loadGarages();
+        const createdGarage = freshList.find(
+          (g: GaragesProps) => g.phoneNumber === createdPhone
+        );
+        setCreatedGarageCode(createdGarage?.code || res.data.code || "");
         setModalSuccessCreate(true);
       } else if (res.status === 409) {
         showError(res.message, "Garage deja existant");
@@ -507,6 +515,14 @@ export default function GaragesPage() {
                 </button>
                 <button
                   onClick={() => {
+                    if (!createdGarageCode) {
+                      setModalSuccessCreate(false);
+                      showError(
+                        "Le code du garage n'a pas pu etre recupere. Veuillez l'activer depuis la liste des garages.",
+                        "Code introuvable"
+                      );
+                      return;
+                    }
                     setModalSuccessCreate(false);
                     setActivateCode(createdGarageCode);
                     setActivateSender("SMS");
