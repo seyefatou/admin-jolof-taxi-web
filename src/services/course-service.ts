@@ -89,6 +89,9 @@ type ApiCourse = {
     ratePrice: number;
     priceMn: number;
   };
+  cancelReason?: string | null;
+  cancel_reason?: string | null;
+  reason?: string | null;
   created_at?: string;
   createdAt?: string;
   updated_at?: string;
@@ -139,6 +142,7 @@ const mapApiToCourse = (api: ApiCourse): CourseProps => {
     commission: 0,
     created_at: createdAt,
     updated_at: updatedAt && updatedAt !== createdAt ? updatedAt : createdAt,
+    cancel_reason: api.cancelReason || api.cancel_reason || api.reason || undefined,
     started_at: api.raceStartTime || undefined,
     completed_at: api.raceEndTime || undefined,
   };
@@ -382,16 +386,50 @@ const getLive = async () => {
   };
 };
 
+// Annuler une course (v2 - avec motif et statut)
+const cancelV2 = async (courseId: string, reason: string, status: string = "CANCELED BY CUSTOMER") => {
+  const res = await Axios.post<{ message: string; status: number; data: ApiCourse }>(
+    `booking_service/bookings/${courseId}/cancel_customer_v2`,
+    { status, reason }
+  );
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: mapApiToCourse(res.data.data),
+  };
+};
+
+// Trace GPS d'une course
+export type TripLocation = {
+  id: number;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+};
+
+const getTripLocations = async (bookingId: string) => {
+  const res = await Axios.get<{ message: string; status: number; data: TripLocation[] }>(
+    `booking_service/bookings/${bookingId}/trip-locations`
+  );
+  return {
+    message: res.data.message,
+    status: res.data.status,
+    data: res.data.data || [],
+  };
+};
+
 export const SERVICE_COURSE = {
   getAll,
   getOne,
   getStats,
   getDriverStats,
   cancel,
+  cancelV2,
   assignDriver,
   startRide,
   completeRide,
   getByCustomer,
   getByDriver,
   getLive,
+  getTripLocations,
 };

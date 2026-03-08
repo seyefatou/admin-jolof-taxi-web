@@ -555,7 +555,15 @@ export default function CoursesPage() {
                       <div className="text-xs text-gray-400">{course.payment_method?.name || "N/A"}</div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">{getStatusBadge(course.status)}</td>
+                  <td className="px-4 py-3">
+                    {getStatusBadge(course.status)}
+                    {course.cancel_reason && (
+                      <div className="mt-1 text-xs text-red-500 max-w-[160px] truncate" title={course.cancel_reason}>
+                        <Icon icon="mdi:message-alert" className="inline mr-1 text-red-400" />
+                        {course.cancel_reason}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="text-sm">
                       <div className="text-gray-700">{new Date(course.created_at).toLocaleDateString("fr-FR")}</div>

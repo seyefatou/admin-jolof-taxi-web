@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Icon } from "@iconify/react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 import { SERVICE_CHAUFFEUR, ChauffeurProps } from "@/services/chauffeur-service";
+
+const TripMap = dynamic(() => import("@/components/ui/TripMap"), { ssr: false });
 
 export default function CourseDetails() {
   const params = useParams();
@@ -21,8 +24,18 @@ export default function CourseDetails() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [cancelType, setCancelType] = useState("CANCELED BY CUSTOMER");
   const [selectedDriver, setSelectedDriver] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  const cancelMotifs = [
+    "Temps d'attente trop long",
+    "Changement de plan",
+    "Erreur de destination",
+    "Chauffeur introuvable",
+    "Probleme de paiement",
+    "Autre",
+  ];
 
   const loadCourse = async () => {
     try {
@@ -69,11 +82,12 @@ export default function CourseDetails() {
 
     setActionLoading(true);
     try {
-      const res = await SERVICE_COURSE.cancel(course.code_booking, cancelReason);
+      const res = await SERVICE_COURSE.cancelV2(course.code_booking, cancelReason, cancelType);
       if (res.status === 200 || res.status === 201) {
         toast.success("Course annulee avec succes");
         setShowCancelModal(false);
         setCancelReason("");
+        setCancelType("CANCELED BY CUSTOMER");
         loadCourse();
       } else {
         toast.error(res.message || "Erreur lors de l'annulation");
@@ -276,6 +290,13 @@ export default function CourseDetails() {
               </div>
             </div>
           </div>
+
+          {/* Trace GPS */}
+          <TripMap
+            bookingId={course.code_booking}
+            pickup={course.pickup_location}
+            dropoff={course.dropoff_location}
+          />
 
           {/* Client */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
@@ -586,13 +607,44 @@ export default function CourseDetails() {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Raison de l'annulation <span className="text-red-500">*</span>
+                  Type d'annulation <span className="text-red-500">*</span>
                 </label>
+                <select
+                  value={cancelType}
+                  onChange={(e) => setCancelType(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-200 outline-none"
+                >
+                  <option value="CANCELED BY CUSTOMER">Annulee par le client</option>
+                  <option value="CANCELED BY DRIVER">Annulee par le chauffeur</option>
+                  <option value="CANCELED BY SYSTEM">Annulee par le systeme</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motif <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {cancelMotifs.map((motif) => (
+                    <button
+                      key={motif}
+                      type="button"
+                      onClick={() => setCancelReason(motif)}
+                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                        cancelReason === motif
+                          ? "bg-red-100 border-red-400 text-red-700"
+                          : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {motif}
+                    </button>
+                  ))}
+                </div>
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Indiquez la raison de l'annulation..."
-                  rows={3}
+                  placeholder="Ou saisissez un motif personnalise..."
+                  rows={2}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-200 outline-none"
                 />
               </div>
