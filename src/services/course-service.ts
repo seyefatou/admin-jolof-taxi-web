@@ -38,6 +38,7 @@ export type CourseProps = {
   cancel_reason?: string;
   created_at: string;
   updated_at: string;
+  accepted_at?: string;
   started_at?: string;
   completed_at?: string;
 };
@@ -79,6 +80,7 @@ type ApiCourse = {
   distanceKm: number;
   durationMn: number;
   additionalFees?: number | null;
+  acceptedAt?: string | null;
   raceStartTime?: string | null;
   raceEndTime?: string | null;
   waitTimeMn?: number | null;
@@ -143,6 +145,7 @@ const mapApiToCourse = (api: ApiCourse): CourseProps => {
     created_at: createdAt,
     updated_at: updatedAt && updatedAt !== createdAt ? updatedAt : createdAt,
     cancel_reason: api.cancelReason || api.cancel_reason || api.reason || undefined,
+    accepted_at: api.acceptedAt || undefined,
     started_at: api.raceStartTime || undefined,
     completed_at: api.raceEndTime || undefined,
   };

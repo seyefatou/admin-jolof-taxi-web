@@ -8,23 +8,25 @@ import "leaflet/dist/leaflet.css";
 import { SERVICE_COURSE, TripLocation } from "@/services/course-service";
 import { LocationInfo } from "@/services/course-service";
 
-const startIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const getStartIcon = () =>
+  new L.Icon({
+    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
 
-const endIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const getEndIcon = () =>
+  new L.Icon({
+    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
 
 function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
   const map = useMap();
@@ -168,7 +170,7 @@ export default function TripMap({ bookingId, pickup, dropoff }: TripMapProps) {
           />
 
           {/* Pickup marker */}
-          <Marker position={pickupPos} icon={startIcon}>
+          <Marker position={pickupPos} icon={getStartIcon()}>
             <Popup>
               <strong>Depart</strong>
               <br />
@@ -177,7 +179,7 @@ export default function TripMap({ bookingId, pickup, dropoff }: TripMapProps) {
           </Marker>
 
           {/* Dropoff marker */}
-          <Marker position={dropoffPos} icon={endIcon}>
+          <Marker position={dropoffPos} icon={getEndIcon()}>
             <Popup>
               <strong>Arrivee</strong>
               <br />

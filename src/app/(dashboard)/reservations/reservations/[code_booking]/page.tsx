@@ -487,7 +487,11 @@ export default function CourseDetails() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-800">Course acceptee</p>
-                      <p className="text-sm text-gray-500">Le chauffeur a accepte la course</p>
+                      <p className="text-sm text-gray-500">
+                        {course.accepted_at
+                          ? new Date(course.accepted_at).toLocaleString("fr-FR")
+                          : "Le chauffeur a accepte la course"}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -521,16 +525,14 @@ export default function CourseDetails() {
                 )}
 
                 {/* Course terminee */}
-                {course.completed_at && (
+                {course.status === "DONE" && (
                   <div className="flex gap-3 relative">
                     <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 z-10">
                       <Icon icon="mdi:check-circle" className="text-green-600" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-800">Course terminee</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(course.completed_at).toLocaleString("fr-FR")}
-                      </p>
+                      <p className="text-sm text-gray-500">La course est terminee</p>
                     </div>
                   </div>
                 )}
