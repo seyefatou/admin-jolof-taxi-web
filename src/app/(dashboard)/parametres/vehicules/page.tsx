@@ -33,6 +33,7 @@ export default function VehiculesPage() {
   const [loading, setLoading] = useState(true);
   const [cars, setCars] = useState<VehiculeResp[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [plateSearch, setPlateSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [expandedCarId, setExpandedCarId] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "id", direction: "ascending" });
@@ -62,7 +63,7 @@ export default function VehiculesPage() {
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterCategory]);
+  }, [searchTerm, plateSearch, filterCategory]);
 
   // Fonction de tri
   const handleSort = (key: string) => {
@@ -91,14 +92,18 @@ export default function VehiculesPage() {
         car.licensePlateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         car.owner.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-      if (filterCategory === "all") return matchSearch;
+      const matchPlate = plateSearch
+        ? car.licensePlateNumber.toLowerCase().includes(plateSearch.toLowerCase())
+        : true;
+
+      if (filterCategory === "all") return matchSearch && matchPlate;
 
       const currentYear = new Date().getFullYear();
       const age = currentYear - car.year;
-      if (filterCategory === "comfort-plus") return matchSearch && age < 2;
-      if (filterCategory === "comfort") return matchSearch && age >= 2 && age < 10;
-      if (filterCategory === "eco") return matchSearch && age >= 10;
-      return matchSearch;
+      if (filterCategory === "comfort-plus") return matchSearch && matchPlate && age < 2;
+      if (filterCategory === "comfort") return matchSearch && matchPlate && age >= 2 && age < 10;
+      if (filterCategory === "eco") return matchSearch && matchPlate && age >= 10;
+      return matchSearch && matchPlate;
     })
     .sort((a, b) => {
       let valueA: string | number;
@@ -317,16 +322,42 @@ export default function VehiculesPage() {
               </button>
             )}
           </div>
-          {filterCategory !== "all" && (
+          <div className="relative min-w-[250px] group">
+            <Icon icon="mdi:card-text-outline" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-yellow-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Rechercher par plaque..."
+              value={plateSearch}
+              onChange={(e) => setPlateSearch(e.target.value.toUpperCase())}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-200 focus:border-yellow-400 transition-all duration-200 uppercase placeholder:normal-case"
+            />
+            {plateSearch && (
+              <button
+                onClick={() => setPlateSearch("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <Icon icon="mdi:close-circle" />
+              </button>
+            )}
+          </div>
+          {(filterCategory !== "all" || plateSearch) && (
             <button
-              onClick={() => setFilterCategory("all")}
+              onClick={() => { setFilterCategory("all"); setPlateSearch(""); }}
               className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 transition-colors"
             >
               <Icon icon="mdi:close" />
-              Effacer le filtre
+              Effacer les filtres
             </button>
           )}
         </div>
+        {plateSearch && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Icon icon="mdi:information-outline" className="text-yellow-500" />
+            <span className="text-gray-600">
+              {filteredCars.length} vehicule{filteredCars.length !== 1 ? "s" : ""} trouve{filteredCars.length !== 1 ? "s" : ""} pour la plaque <span className="font-bold text-yellow-700">&quot;{plateSearch}&quot;</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tableau */}
@@ -410,7 +441,11 @@ export default function VehiculesPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono font-medium bg-gray-100 px-2 py-1 rounded">
+                        <span className={`font-mono font-medium px-2 py-1 rounded ${
+                          plateSearch && car.licensePlateNumber.toLowerCase().includes(plateSearch.toLowerCase())
+                            ? "bg-yellow-200 text-yellow-800 ring-2 ring-yellow-400"
+                            : "bg-gray-100"
+                        }`}>
                           {car.licensePlateNumber}
                         </span>
                       </TableCell>

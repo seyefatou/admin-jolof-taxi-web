@@ -104,7 +104,8 @@ export type UpdateChauffeurData = {
   name: string;
   phone: string;
   email?: string;
-  garageId?: number;
+  address?: string;
+  garageAffiliation?: string;
 };
 
 export type ConnectionQuality = "GOOD" | "POOR" | "DISCONNECTED";
@@ -258,13 +259,14 @@ const create = async (formData: FormData) => {
 
 // Modifier un chauffeur
 const update = async (data: UpdateChauffeurData) => {
+  const { matricule, ...body } = data;
   // Supprimer les champs undefined pour eviter les erreurs backend
-  const body = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined && v !== null)
+  const cleanBody = Object.fromEntries(
+    Object.entries(body).filter(([, v]) => v !== undefined && v !== null && v !== "")
   );
   const res = await Axios.put<ChauffeurOneResponse>(
-    `auth_service/users/drivers/registration`,
-    body
+    `auth_service/users/drivers/${matricule}/update`,
+    cleanBody
   );
   return res.data;
 };

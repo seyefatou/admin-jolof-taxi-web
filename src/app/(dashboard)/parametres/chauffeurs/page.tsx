@@ -38,6 +38,7 @@ export default function ChauffeursList() {
   const [vehicleTypes, setVehicleTypes] = useState<VehiculeTypeResp[]>([]);
   const [connectionMap, setConnectionMap] = useState<Record<string, ConnectionQuality>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [plateSearch, setPlateSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [onlineFilter, setOnlineFilter] = useState("ALL");
   const [garageFilter, setGarageFilter] = useState("ALL");
@@ -150,7 +151,7 @@ export default function ChauffeursList() {
   // Reset page quand les filtres changent
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, onlineFilter, garageFilter, searchTerm]);
+  }, [statusFilter, onlineFilter, garageFilter, searchTerm, plateSearch]);
 
   // Filtrage local (recherche + filtres)
   const filteredChauffeurs = chauffeurs.filter((chauffeur) => {
@@ -170,7 +171,10 @@ export default function ChauffeursList() {
     const matchGarage =
       garageFilter === "ALL" ||
       chauffeur.garageAffiliation?.id?.toString() === garageFilter;
-    return matchSearch && matchStatus && matchOnline && matchGarage;
+    const matchPlate = plateSearch
+      ? chauffeur.vehicule?.licensePlateNumber?.toLowerCase().includes(plateSearch.toLowerCase())
+      : true;
+    return matchSearch && matchStatus && matchOnline && matchGarage && matchPlate;
   });
 
   // Pagination
@@ -218,7 +222,20 @@ export default function ChauffeursList() {
     const isUpdate = formData.has("matricule");
     try {
       console.log("Envoi du formulaire chauffeur...", isUpdate ? "modification" : "creation");
-      const res = await SERVICE_CHAUFFEUR.create(formData);
+      let res;
+      if (isUpdate) {
+        const updateData: UpdateChauffeurData = {
+          matricule: formData.get("matricule") as string,
+          name: formData.get("fullName") as string,
+          phone: formData.get("phone") as string,
+          email: (formData.get("email") as string) || undefined,
+          address: (formData.get("address") as string) || undefined,
+          garageAffiliation: (formData.get("garageId") as string) || undefined,
+        };
+        res = await SERVICE_CHAUFFEUR.update(updateData);
+      } else {
+        res = await SERVICE_CHAUFFEUR.create(formData);
+      }
       console.log("Reponse:", res);
 
       if (res.status === 200 || res.status === 201) {
@@ -433,7 +450,7 @@ export default function ChauffeursList() {
 
       {/* Filtres */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <FilterDropdown
             label="Statut"
             icon="mdi:filter-variant"
@@ -457,6 +474,31 @@ export default function ChauffeursList() {
             value={garageFilter}
             onChange={setGarageFilter}
           />
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+              <Icon icon="mdi:card-text-outline" className="inline mr-1" />
+              Plaque
+            </label>
+            <div className="relative group">
+              <Icon icon="mdi:card-text-outline" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-yellow-500 transition-colors" />
+              <input
+                type="text"
+                placeholder="Rechercher par plaque..."
+                value={plateSearch}
+                onChange={(e) => setPlateSearch(e.target.value.toUpperCase())}
+                className="w-full pl-11 pr-10 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 outline-none transition-all duration-200 uppercase placeholder:normal-case"
+              />
+              {plateSearch && (
+                <button
+                  onClick={() => setPlateSearch("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <Icon icon="mdi:close-circle" className="text-xl" />
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
@@ -483,6 +525,14 @@ export default function ChauffeursList() {
             </div>
           </div>
         </div>
+        {plateSearch && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Icon icon="mdi:information-outline" className="text-yellow-500" />
+            <span className="text-gray-600">
+              {filteredChauffeurs.length} chauffeur{filteredChauffeurs.length !== 1 ? "s" : ""} trouve{filteredChauffeurs.length !== 1 ? "s" : ""} pour la plaque <span className="font-bold text-yellow-700">&quot;{plateSearch}&quot;</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tableau */}
@@ -593,7 +643,13 @@ export default function ChauffeursList() {
                             {chauffeur.vehicule.brand} {chauffeur.vehicule.model}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {chauffeur.vehicule.licensePlateNumber?.toUpperCase()}
+                            <span className={`${
+                              plateSearch && chauffeur.vehicule.licensePlateNumber?.toLowerCase().includes(plateSearch.toLowerCase())
+                                ? "bg-yellow-200 text-yellow-800 px-1 py-0.5 rounded ring-1 ring-yellow-400 font-semibold"
+                                : ""
+                            }`}>
+                              {chauffeur.vehicule.licensePlateNumber?.toUpperCase()}
+                            </span>
                             {chauffeur.vehicule.type && <span> • {chauffeur.vehicule.type}</span>}
                           </p>
                         </div>
