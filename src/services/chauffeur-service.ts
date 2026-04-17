@@ -105,7 +105,7 @@ export type UpdateChauffeurData = {
   phone: string;
   email?: string;
   address?: string;
-  garageAffiliation?: string;
+  garageId?: string;
 };
 
 export type ConnectionQuality = "GOOD" | "POOR" | "DISCONNECTED";

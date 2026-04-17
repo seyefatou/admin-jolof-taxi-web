@@ -230,7 +230,7 @@ export default function ChauffeursList() {
           phone: formData.get("phone") as string,
           email: (formData.get("email") as string) || undefined,
           address: (formData.get("address") as string) || undefined,
-          garageAffiliation: (formData.get("garageId") as string) || undefined,
+          garageId: (formData.get("garageId") as string) || undefined,
         };
         res = await SERVICE_CHAUFFEUR.update(updateData);
       } else {
