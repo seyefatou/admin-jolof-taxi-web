@@ -6,6 +6,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_VEHICULES, VehiculeResp } from "@/services/vehicule-service";
 import Pagination from "@/components/Pagination";
+import VehiculeFormModal from "@/components/vehicules/VehiculeFormModal";
 import {
   AnimatedTableRow,
   TableContainer,
@@ -16,9 +17,27 @@ import {
   PageHeader,
 } from "@/components/ui/AnimatedTable";
 
-const getServiceCategory = (year: number) => {
+const getServiceCategory = (car: VehiculeResp) => {
+  // Si la catégorie est définie dans le véhicule, l'utiliser
+  const category = car.category || car.type;
+  if (category) {
+    switch (category) {
+      case "Confort+":
+        return { category: "Confort+", color: "text-indigo-700", bg: "bg-gradient-to-r from-indigo-100 to-purple-100", border: "border-indigo-200", icon: "mdi:star-circle" };
+      case "Confort":
+      case "confort":
+        return { category: "Confort", color: "text-yellow-700", bg: "bg-gradient-to-r from-yellow-100 to-amber-100", border: "border-yellow-200", icon: "mdi:car-seat" };
+      case "Eco":
+      case "eco":
+        return { category: "Eco", color: "text-green-700", bg: "bg-gradient-to-r from-green-100 to-emerald-100", border: "border-green-200", icon: "mdi:leaf" };
+      default:
+        break;
+    }
+  }
+
+  // Fallback: calcul basé sur l'année
   const currentYear = new Date().getFullYear();
-  const age = currentYear - year;
+  const age = currentYear - car.year;
   if (age < 2) return { category: "Confort+", color: "text-indigo-700", bg: "bg-gradient-to-r from-indigo-100 to-purple-100", border: "border-indigo-200", icon: "mdi:star-circle" };
   if (age < 10) return { category: "Confort", color: "text-yellow-700", bg: "bg-gradient-to-r from-yellow-100 to-amber-100", border: "border-yellow-200", icon: "mdi:car-seat" };
   return { category: "Eco", color: "text-green-700", bg: "bg-gradient-to-r from-green-100 to-emerald-100", border: "border-green-200", icon: "mdi:leaf" };
@@ -37,6 +56,10 @@ export default function VehiculesPage() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [expandedCarId, setExpandedCarId] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "id", direction: "ascending" });
+
+  // Modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingVehicule, setEditingVehicule] = useState<VehiculeResp | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,6 +95,19 @@ export default function VehiculesPage() {
       direction = "descending";
     }
     setSortConfig({ key, direction });
+  };
+
+  const mapVehiculeUpdateData = (data: Partial<VehiculeResp>) => {
+    const category = (data as any).type as string | undefined;
+    const payload = {
+      brand: data.brand as string,
+      model: data.model as string,
+      year: data.year as number,
+      licensePlateNumber: data.licensePlateNumber as string,
+      licenseNumber: data.licenseNumber as string,
+    };
+    const hasPayload = Object.values(payload).some((v) => v !== undefined);
+    return { payload, category, hasPayload };
   };
 
   // Indicateur de direction du tri
@@ -146,6 +182,30 @@ export default function VehiculesPage() {
 
   const toggleCarDetails = (id: number) => {
     setExpandedCarId(expandedCarId === id ? null : id);
+  };
+
+  const handleEditVehicule = (vehicule: VehiculeResp) => {
+    setEditingVehicule(vehicule);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateVehicule = async (data: Partial<VehiculeResp>) => {
+    if (!editingVehicule) return;
+    const { payload, category, hasPayload } = mapVehiculeUpdateData(data);
+
+    try {
+      if (hasPayload) {
+        await SERVICE_VEHICULES.updateVehicule(editingVehicule.id, payload);
+      }
+      if (category !== undefined) {
+        await SERVICE_VEHICULES.updateVehiculeCategory(editingVehicule.id, category);
+      }
+      toast.success("Véhicule modifié avec succès");
+      await loadVehicules(); // Recharger la liste
+    } catch (error) {
+      toast.error("Erreur lors de la modification du véhicule");
+      throw error;
+    }
   };
 
   // Stats
@@ -405,7 +465,7 @@ export default function VehiculesPage() {
           <tbody>
             {paginatedCars.length > 0 ? (
               paginatedCars.map((car, index) => {
-                const serviceCategory = getServiceCategory(car.year);
+                const serviceCategory = getServiceCategory(car);
                 const isExpanded = expandedCarId === car.id;
 
                 return (
@@ -489,16 +549,27 @@ export default function VehiculesPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <button
-                          onClick={() => toggleCarDetails(car.id)}
-                          className={`px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
-                            isExpanded
-                              ? "bg-yellow-400 text-black shadow-md"
-                              : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                          }`}
-                        >
-                          {isExpanded ? "Masquer" : "Details"}
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleEditVehicule(car)}
+                            className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium flex items-center gap-1"
+                            title="Modifier le véhicule"
+                          >
+                            <Icon icon="mdi:pencil" className="text-sm" />
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => toggleCarDetails(car.id)}
+                            className={`px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-1 ${
+                              isExpanded
+                                ? "bg-yellow-400 text-black shadow-md"
+                                : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                            }`}
+                          >
+                            <Icon icon={isExpanded ? "mdi:eye-off" : "mdi:eye"} className="text-sm" />
+                            {isExpanded ? "Masquer" : "Details"}
+                          </button>
+                        </div>
                       </TableCell>
                     </AnimatedTableRow>
                     {isExpanded && (
@@ -593,6 +664,18 @@ export default function VehiculesPage() {
           />
         )}
       </TableContainer>
+
+      {/* Modal de modification */}
+      <VehiculeFormModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingVehicule(null);
+        }}
+        onSubmit={handleUpdateVehicule}
+        vehicule={editingVehicule}
+        loading={loading}
+      />
     </div>
   );
 }

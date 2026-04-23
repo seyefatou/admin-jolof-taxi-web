@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import Pagination from "@/components/Pagination";
 import FilterDropdown from "@/components/FilterDropdown";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExportDropdown from "@/components/ExportDropdown";
+import { exportToExcel, exportToPDF, ExportColumn } from "@/utils/export-table";
 import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 import { SERVICE_CHAUFFEUR, ChauffeurProps } from "@/services/chauffeur-service";
 
@@ -305,6 +307,61 @@ export default function CoursesPage() {
 
   const hasActiveFilters = statusFilter !== "ALL" || dateFilter !== "ALL" || paymentFilter !== "ALL" || driverFilter !== "ALL";
 
+  const COURSE_STATUS_LABELS: Record<string, string> = {
+    DONE: "Terminee",
+    PENDING: "En attente",
+    ACCEPTED: "Acceptee",
+    DRIVER_IN_PROGRESS: "Chauffeur en route",
+    IN_PROGRESS: "En cours",
+    CANCELED: "Annulee",
+    CANCELED_BY_CUSTOMER: "Annulee par client",
+    CANCELED_BY_DRIVER: "Annulee par chauffeur",
+    CANCELED_BY_SYSTEM: "Annulee par systeme",
+  };
+
+  const formatDateFr = (iso?: string | null) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const exportColumns: ExportColumn<CourseProps>[] = [
+    { header: "Code", accessor: (c) => c.code_booking },
+    { header: "Client", accessor: (c) => c.customer?.name || "-" },
+    { header: "Telephone client", accessor: (c) => c.customer?.phone || "-" },
+    { header: "Chauffeur", accessor: (c) => c.driver?.name || "Non assigne" },
+    { header: "Depart", accessor: (c) => c.pickup_location?.address || "-" },
+    { header: "Arrivee", accessor: (c) => c.dropoff_location?.address || "-" },
+    { header: "Statut", accessor: (c) => COURSE_STATUS_LABELS[c.status] || c.status },
+    { header: "Paiement", accessor: (c) => c.payment_method?.name || "-" },
+    { header: "Prix (FCFA)", accessor: (c) => c.price ?? 0 },
+    { header: "Distance (km)", accessor: (c) => c.distance ?? 0 },
+    { header: "Duree (min)", accessor: (c) => c.duration ?? 0 },
+    { header: "Date", accessor: (c) => formatDateFr(c.created_at) },
+  ];
+
+  const handleExport = (format: "pdf" | "excel") => {
+    if (filteredCourses.length === 0) {
+      toast.info("Aucune course a exporter");
+      return;
+    }
+    const config = {
+      fileName: "courses",
+      title: "Liste des Courses",
+      columns: exportColumns,
+      data: filteredCourses,
+    };
+    if (format === "pdf") exportToPDF(config);
+    else exportToExcel(config);
+  };
+
   // Compteurs pour les stats (protection si courses n'est pas un tableau)
   const coursesArray = Array.isArray(courses) ? courses : [];
   const stats = {
@@ -336,13 +393,16 @@ export default function CoursesPage() {
             Liste des Courses
             <span className="text-yellow-500 ml-2">({filteredCourses.length})</span>
           </h1>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors flex items-center gap-2"
-          >
-            <Icon icon="mdi:refresh" />
-            Actualiser
-          </button>
+          <div className="flex items-center gap-3">
+            <ExportDropdown onExport={handleExport} />
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-yellow-300 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors flex items-center gap-2"
+            >
+              <Icon icon="mdi:refresh" />
+              Actualiser
+            </button>
+          </div>
         </div>
       </div>
 
