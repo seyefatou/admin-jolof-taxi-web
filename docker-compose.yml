@@ -2,30 +2,14 @@ services:
   jolof-admin:
     build: .
     container_name: jolof-admin
-    restart: always
+    restart: unless-stopped
     ports:
       - "3005:3005"
-    environment:
-      - NODE_ENV=production
-      - PORT=3005
+    env_file:
+      - .env.production
+    networks:
+      - webnet
 
-#  nginx:
-#    image: nginx:alpine
-#    container_name: jolof-nginx
-#    restart: always
-#    ports:
-#      - "80:80"
-#      - "443:443"
-#    volumes:
-#      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-#      - ./certbot/conf:/etc/letsencrypt
-#      - ./certbot/www:/var/www/certbot
- #   depends_on:
-  #    - jolof-admin
-#
- # certbot:
-  #  image: certbot/certbot
-   # container_name: jolof-certbot
-   # volumes:
-    # - ./certbot/conf:/etc/letsencrypt
-     # - ./certbot/www:/var/www/certbot
+networks:
+  webnet:
+    external: true
