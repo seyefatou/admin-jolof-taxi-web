@@ -207,11 +207,30 @@ export default function ChauffeurDetails() {
     setShowVehicleModal(true);
   };
 
+  const mapVehiculeUpdateData = (data: any) => {
+    const category: string | undefined = data.type ?? data.category;
+    const payload = {
+      brand: data.brand,
+      model: data.model,
+      year: data.year,
+      licensePlateNumber: data.licensePlateNumber,
+      licenseNumber: data.licenseNumber,
+    };
+    const hasPayload = Object.values(payload).some((v) => v !== undefined);
+    return { payload, category, hasPayload };
+  };
+
   const handleUpdateVehicle = async (data: any) => {
     if (!chauffeur?.vehicule) return;
+    const { payload, category, hasPayload } = mapVehiculeUpdateData(data);
 
     try {
-      await SERVICE_VEHICULES.updateVehicule(chauffeur.vehicule.id, data);
+      if (hasPayload) {
+        await SERVICE_VEHICULES.updateVehicule(chauffeur.vehicule.id, payload);
+      }
+      if (category !== undefined) {
+        await SERVICE_VEHICULES.updateVehiculeCategory(chauffeur.vehicule.id, category);
+      }
       toast.success("Véhicule modifié avec succès");
       loadData(); // Recharger les données du chauffeur
     } catch (error) {
@@ -720,7 +739,7 @@ export default function ChauffeurDetails() {
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Categorie</p>
-                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || "N/A"}</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || chauffeur.vehicule.category || "N/A"}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center justify-between">

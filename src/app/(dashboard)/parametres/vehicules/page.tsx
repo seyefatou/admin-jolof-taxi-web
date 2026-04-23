@@ -19,13 +19,16 @@ import {
 
 const getServiceCategory = (car: VehiculeResp) => {
   // Si la catégorie est définie dans le véhicule, l'utiliser
-  if (car.category) {
-    switch (car.category) {
+  const category = car.category || car.type;
+  if (category) {
+    switch (category) {
       case "Confort+":
         return { category: "Confort+", color: "text-indigo-700", bg: "bg-gradient-to-r from-indigo-100 to-purple-100", border: "border-indigo-200", icon: "mdi:star-circle" };
       case "Confort":
+      case "confort":
         return { category: "Confort", color: "text-yellow-700", bg: "bg-gradient-to-r from-yellow-100 to-amber-100", border: "border-yellow-200", icon: "mdi:car-seat" };
       case "Eco":
+      case "eco":
         return { category: "Eco", color: "text-green-700", bg: "bg-gradient-to-r from-green-100 to-emerald-100", border: "border-green-200", icon: "mdi:leaf" };
       default:
         break;
@@ -92,6 +95,19 @@ export default function VehiculesPage() {
       direction = "descending";
     }
     setSortConfig({ key, direction });
+  };
+
+  const mapVehiculeUpdateData = (data: Partial<VehiculeResp>) => {
+    const category = (data as any).type as string | undefined;
+    const payload = {
+      brand: data.brand as string,
+      model: data.model as string,
+      year: data.year as number,
+      licensePlateNumber: data.licensePlateNumber as string,
+      licenseNumber: data.licenseNumber as string,
+    };
+    const hasPayload = Object.values(payload).some((v) => v !== undefined);
+    return { payload, category, hasPayload };
   };
 
   // Indicateur de direction du tri
@@ -175,9 +191,15 @@ export default function VehiculesPage() {
 
   const handleUpdateVehicule = async (data: Partial<VehiculeResp>) => {
     if (!editingVehicule) return;
+    const { payload, category, hasPayload } = mapVehiculeUpdateData(data);
 
     try {
-      await SERVICE_VEHICULES.updateVehicule(editingVehicule.id, data);
+      if (hasPayload) {
+        await SERVICE_VEHICULES.updateVehicule(editingVehicule.id, payload);
+      }
+      if (category !== undefined) {
+        await SERVICE_VEHICULES.updateVehiculeCategory(editingVehicule.id, category);
+      }
       toast.success("Véhicule modifié avec succès");
       await loadVehicules(); // Recharger la liste
     } catch (error) {

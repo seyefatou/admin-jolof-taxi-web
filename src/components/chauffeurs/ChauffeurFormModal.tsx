@@ -206,6 +206,7 @@ export default function ChauffeurFormModal({
     formData.address.trim() !== "";
 
   const isVehicleInfoValid =
+    isEditMode ||
     !hasVehicle ||
     (vehicleData.brand !== "" &&
       vehicleData.model !== "" &&
@@ -242,57 +243,46 @@ export default function ChauffeurFormModal({
       submitFormData.append("address", formData.address);
       submitFormData.append("latitude", formData.latitude.toString());
       submitFormData.append("longitude", formData.longitude.toString());
-      submitFormData.append("have_vehicule", hasVehicle.toString());
 
       // Garage
       if (hasGarage && selectedGarageId) {
         submitFormData.append("garageId", selectedGarageId);
       }
 
-      // Vehicle info
-      if (hasVehicle) {
-        submitFormData.append("brand", vehicleData.brand);
-        submitFormData.append("model", vehicleData.model);
-        submitFormData.append("year", vehicleData.year);
-        submitFormData.append("typeService", vehicleData.typeService);
-        submitFormData.append("licensePlate", vehicleData.licensePlate);
-        submitFormData.append("licenseNumber", vehicleData.licenseNumber);
-      }
+      // En mode edition: le backend a separe vehicule et documents
+      // dans des endpoints dedies. On ne les envoie plus ici.
+      if (!isEditMode) {
+        submitFormData.append("have_vehicule", hasVehicle.toString());
 
-      // Fichiers - Permis de conduire
-      if (permitRecto) {
-        const compressed = await compressImage(permitRecto);
-        submitFormData.append("file_permit_recto", compressed);
-      } else if (isEditMode && existingPermitRecto) {
-        submitFormData.append("keep_existing_file_permit_recto", "true");
-      }
-      if (permitVerso) {
-        const compressed = await compressImage(permitVerso);
-        submitFormData.append("file_permit_verso", compressed);
-      } else if (isEditMode && existingPermitVerso) {
-        submitFormData.append("keep_existing_file_permit_verso", "true");
-      }
+        if (hasVehicle) {
+          submitFormData.append("brand", vehicleData.brand);
+          submitFormData.append("model", vehicleData.model);
+          submitFormData.append("year", vehicleData.year);
+          submitFormData.append("typeService", vehicleData.typeService);
+          submitFormData.append("licensePlate", vehicleData.licensePlate);
+          submitFormData.append("licenseNumber", vehicleData.licenseNumber);
+        }
 
-      // Fichiers - Carte grise
-      if (carRegRecto) {
-        const compressed = await compressImage(carRegRecto);
-        submitFormData.append("file_car_registration_recto", compressed);
-      } else if (isEditMode && existingCarRegRecto) {
-        submitFormData.append("keep_existing_file_car_registration_recto", "true");
-      }
-      if (carRegVerso) {
-        const compressed = await compressImage(carRegVerso);
-        submitFormData.append("file_car_registration_verso", compressed);
-      } else if (isEditMode && existingCarRegVerso) {
-        submitFormData.append("keep_existing_file_car_registration_verso", "true");
-      }
-
-      // Fichiers - Livret
-      if (booklet) {
-        const compressed = await compressImage(booklet);
-        submitFormData.append("file_booklet", compressed);
-      } else if (isEditMode && existingBooklet) {
-        submitFormData.append("keep_existing_file_booklet", "true");
+        if (permitRecto) {
+          const compressed = await compressImage(permitRecto);
+          submitFormData.append("file_permit_recto", compressed);
+        }
+        if (permitVerso) {
+          const compressed = await compressImage(permitVerso);
+          submitFormData.append("file_permit_verso", compressed);
+        }
+        if (carRegRecto) {
+          const compressed = await compressImage(carRegRecto);
+          submitFormData.append("file_car_registration_recto", compressed);
+        }
+        if (carRegVerso) {
+          const compressed = await compressImage(carRegVerso);
+          submitFormData.append("file_car_registration_verso", compressed);
+        }
+        if (booklet) {
+          const compressed = await compressImage(booklet);
+          submitFormData.append("file_booklet", compressed);
+        }
       }
 
       await onSubmit(submitFormData);
@@ -538,16 +528,30 @@ export default function ChauffeurFormModal({
               />
               <span className="text-sm text-gray-700">Le chauffeur fait partie d'un garage?</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={hasVehicle}
-                onChange={(e) => setHasVehicle(e.target.checked)}
-                className="w-4 h-4 text-yellow-500 border-gray-300 rounded focus:ring-yellow-400"
-              />
-              <span className="text-sm text-gray-700">Le chauffeur possede un vehicule</span>
-            </label>
+            {!isEditMode && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasVehicle}
+                  onChange={(e) => setHasVehicle(e.target.checked)}
+                  className="w-4 h-4 text-yellow-500 border-gray-300 rounded focus:ring-yellow-400"
+                />
+                <span className="text-sm text-gray-700">Le chauffeur possede un vehicule</span>
+              </label>
+            )}
           </div>
+
+          {isEditMode && (
+            <div className="mb-4 flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <Icon icon="mdi:information-outline" className="text-blue-500 text-xl mt-0.5 shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Modification limitee aux infos du chauffeur</p>
+                <p className="text-blue-700">
+                  Pour modifier le vehicule ou les documents, utilisez la page detail du chauffeur.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Garage Selection */}
           {hasGarage && (
@@ -670,7 +674,7 @@ export default function ChauffeurFormModal({
           )}
 
           {/* Vehicle Info Section */}
-          {hasVehicle && (
+          {!isEditMode && hasVehicle && (
             <div className="border border-gray-300 rounded-xl p-4 mb-4">
               <h3 className="text-sm font-bold text-gray-500 mb-3">Informations du vehicule</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -745,46 +749,44 @@ export default function ChauffeurFormModal({
             </div>
           )}
 
-          {/* Documents - Permis de conduire (required) */}
-          <div className="border border-gray-300 rounded-xl p-4 mb-4">
-            <h3 className="text-sm font-bold text-gray-500 mb-3">
-              Permis de conduire {isEditMode ? "" : "*"}
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FileUploadBox label="permit" file={permitRecto} setFile={setPermitRecto} side="Recto" existingImageUrl={existingPermitRecto} />
-              <FileUploadBox label="permit" file={permitVerso} setFile={setPermitVerso} side="Verso" existingImageUrl={existingPermitVerso} />
-            </div>
-          </div>
+          {!isEditMode && (
+            <>
+              {/* Documents - Permis de conduire (required) */}
+              <div className="border border-gray-300 rounded-xl p-4 mb-4">
+                <h3 className="text-sm font-bold text-gray-500 mb-3">Permis de conduire *</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FileUploadBox label="permit" file={permitRecto} setFile={setPermitRecto} side="Recto" existingImageUrl={existingPermitRecto} />
+                  <FileUploadBox label="permit" file={permitVerso} setFile={setPermitVerso} side="Verso" existingImageUrl={existingPermitVerso} />
+                </div>
+              </div>
 
-          {/* Documents - Carte Grise */}
-          <div className="border border-gray-300 rounded-xl p-4 mb-4">
-            <h3 className="text-sm font-bold text-gray-500 mb-3">
-              Carte Grise {isEditMode ? "" : "*"}
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" existingImageUrl={existingCarRegRecto} />
-              <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" existingImageUrl={existingCarRegVerso} />
-            </div>
-          </div>
+              {/* Documents - Carte Grise */}
+              <div className="border border-gray-300 rounded-xl p-4 mb-4">
+                <h3 className="text-sm font-bold text-gray-500 mb-3">Carte Grise *</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FileUploadBox label="carReg" file={carRegRecto} setFile={setCarRegRecto} side="Recto" existingImageUrl={existingCarRegRecto} />
+                  <FileUploadBox label="carReg" file={carRegVerso} setFile={setCarRegVerso} side="Verso" existingImageUrl={existingCarRegVerso} />
+                </div>
+              </div>
 
-          {/* Documents - Livret */}
-          <div className="border border-gray-300 rounded-xl p-4 mb-4">
-            <h3 className="text-sm font-bold text-gray-500 mb-3">
-              Livret {isEditMode ? "" : "*"}
-            </h3>
-            <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" existingImageUrl={existingBooklet} />
-          </div>
+              {/* Documents - Livret */}
+              <div className="border border-gray-300 rounded-xl p-4 mb-4">
+                <h3 className="text-sm font-bold text-gray-500 mb-3">Livret *</h3>
+                <FileUploadBox label="booklet" file={booklet} setFile={setBooklet} side="Document" existingImageUrl={existingBooklet} />
+              </div>
 
-          {/* Documents Valid Indicator */}
-          <div className="flex items-center gap-2 mb-4">
-            <Icon
-              icon={isDocumentsValid ? "mdi:check-circle" : "mdi:circle-outline"}
-              className={isDocumentsValid ? "text-green-500" : "text-gray-300"}
-            />
-            <span className={`text-xs ${isDocumentsValid ? "text-green-500" : "text-gray-400"}`}>
-              Documents {isDocumentsValid ? "complets" : "incomplets"}
-            </span>
-          </div>
+              {/* Documents Valid Indicator */}
+              <div className="flex items-center gap-2 mb-4">
+                <Icon
+                  icon={isDocumentsValid ? "mdi:check-circle" : "mdi:circle-outline"}
+                  className={isDocumentsValid ? "text-green-500" : "text-gray-300"}
+                />
+                <span className={`text-xs ${isDocumentsValid ? "text-green-500" : "text-gray-400"}`}>
+                  Documents {isDocumentsValid ? "complets" : "incomplets"}
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Submit Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">

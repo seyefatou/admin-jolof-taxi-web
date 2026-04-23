@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { VehiculeResp } from "@/services/vehicule-service";
+import { SERVICE_VEHICULES, VehiculeResp, VehiculeTypeResp } from "@/services/vehicule-service";
 
 type VehiculeFormModalProps = {
   isOpen: boolean;
@@ -35,6 +35,29 @@ export default function VehiculeFormModal({
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [categoryTypes, setCategoryTypes] = useState<VehiculeTypeResp[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setLoadingTypes(true);
+    SERVICE_VEHICULES.getTypeList()
+      .then((res) => {
+        if (cancelled) return;
+        const actifs = (res.data || []).filter((t) => t.status === true);
+        setCategoryTypes(actifs);
+      })
+      .catch(() => {
+        if (!cancelled) setCategoryTypes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTypes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   // Reset form or populate with vehicule data when modal opens
   useEffect(() => {
@@ -50,7 +73,7 @@ export default function VehiculeFormModal({
           color: vehicule.color || "",
           status: vehicule.status || "ACTIVE",
           isAvailable: vehicule.isAvailable ?? true,
-          category: vehicule.category || "Confort",
+          category: vehicule.category || vehicule.type || "Confort",
         });
       } else {
         // Mode creation: reinitialiser le formulaire
@@ -87,9 +110,15 @@ export default function VehiculeFormModal({
     setSubmitting(true);
     try {
       const submitData = {
-        ...formData,
+        brand: formData.brand,
+        model: formData.model,
         year: parseInt(formData.year),
         licensePlateNumber: formData.licensePlateNumber.toUpperCase(),
+        licenseNumber: formData.licenseNumber,
+        color: formData.color,
+        status: formData.status,
+        isAvailable: formData.isAvailable,
+        type: formData.category,
       };
 
       await onSubmit(submitData);
@@ -184,12 +213,27 @@ export default function VehiculeFormModal({
               <select
                 value={formData.category}
                 onChange={(e) => handleInputChange("category", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-200 focus:border-yellow-400 transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-200 focus:border-yellow-400 transition-all disabled:bg-gray-100"
                 required
+                disabled={loadingTypes}
               >
-                <option value="Eco">Eco</option>
-                <option value="Confort">Confort</option>
-                <option value="Confort+">Confort+</option>
+                {loadingTypes ? (
+                  <option value="">Chargement...</option>
+                ) : categoryTypes.length === 0 ? (
+                  <option value="">Aucun type disponible</option>
+                ) : (
+                  <>
+                    {formData.category &&
+                      !categoryTypes.some((t) => t.type === formData.category) && (
+                        <option value={formData.category}>{formData.category}</option>
+                      )}
+                    {categoryTypes.map((t) => (
+                      <option key={t.id} value={t.type}>
+                        {t.type}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
           </div>
