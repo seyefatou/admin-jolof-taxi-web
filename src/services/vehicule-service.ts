@@ -47,6 +47,7 @@ export type VehiculeResp = {
   isAvailable: boolean;
   color: string | null;
   status: string;
+  category?: string; // Eco, Confort, Confort+
   owner: Owner;
 };
 
@@ -109,6 +110,11 @@ const getAll = async () => {
   return res.data;
 };
 
+const updateVehicule = async (id: number, data: Partial<VehiculeResp>) => {
+  const res = await Axios.put(`auth_service/users/vehicles/${id}`, data);
+  return res.data;
+};
+
 const updateTypeStatus = async (id: number) => {
   const res = await Axios.put(`booking_service/type_vehicules/${id}/change-status`, {
     status: "ACTIVE",
@@ -122,5 +128,6 @@ export const SERVICE_VEHICULES = {
   getTypeList,
   getTypeOne,
   getAll,
+  updateVehicule,
   updateTypeStatus,
 };

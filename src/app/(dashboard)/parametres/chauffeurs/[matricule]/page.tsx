@@ -8,6 +8,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { SERVICE_CHAUFFEUR, ChauffeurProps, DriverDocumentInfo, FilleulProps } from "@/services/chauffeur-service";
 import { SERVICE_DOCUMENT, DocumentType } from "@/services/document-service";
 import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
+import VehiculeFormModal from "@/components/vehicules/VehiculeFormModal";
+import { SERVICE_VEHICULES } from "@/services/vehicule-service";
 
 export default function ChauffeurDetails() {
   const params = useParams();
@@ -48,6 +50,9 @@ export default function ChauffeurDetails() {
   const [filleuls, setFilleuls] = useState<FilleulProps[]>([]);
   const [filleulsLoading, setFilleulsLoading] = useState(false);
   const [offlineLoading, setOfflineLoading] = useState(false);
+
+  // Vehicle edit modal
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
 
   // Statistiques courses
   const [driverCourses, setDriverCourses] = useState<CourseProps[]>([]);
@@ -196,6 +201,23 @@ export default function ChauffeurDetails() {
     if (!chauffeur) return;
     setConfirmAction({ type: chauffeur.isAmbassadeur ? "remove_ambassadeur" : "ambassadeur" });
     setShowConfirmModal(true);
+  };
+
+  const handleEditVehicle = () => {
+    setShowVehicleModal(true);
+  };
+
+  const handleUpdateVehicle = async (data: any) => {
+    if (!chauffeur?.vehicule) return;
+
+    try {
+      await SERVICE_VEHICULES.updateVehicule(chauffeur.vehicule.id, data);
+      toast.success("Véhicule modifié avec succès");
+      loadData(); // Recharger les données du chauffeur
+    } catch (error) {
+      toast.error("Erreur lors de la modification du véhicule");
+      throw error;
+    }
   };
 
   const openImagePreview = (imageUrl: string, title: string) => {
@@ -701,7 +723,7 @@ export default function ChauffeurDetails() {
                     <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || "N/A"}</p>
                   </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex items-center justify-between">
                   <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${
                     chauffeur.vehicule.isAvailable
                       ? 'bg-green-100 text-green-700'
@@ -710,6 +732,13 @@ export default function ChauffeurDetails() {
                     <Icon icon={chauffeur.vehicule.isAvailable ? "mdi:check-circle" : "mdi:close-circle"} />
                     {chauffeur.vehicule.isAvailable ? "Disponible" : "Indisponible"}
                   </span>
+                  <button
+                    onClick={handleEditVehicle}
+                    className="px-3 py-1.5 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors text-sm font-medium flex items-center gap-1"
+                  >
+                    <Icon icon="mdi:pencil" className="text-xs" />
+                    Modifier véhicule
+                  </button>
                 </div>
               </div>
             ) : (
@@ -1407,6 +1436,36 @@ export default function ChauffeurDetails() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Vehicle Edit Modal */}
+      {chauffeur?.vehicule && (
+        <VehiculeFormModal
+          isOpen={showVehicleModal}
+          onClose={() => setShowVehicleModal(false)}
+          onSubmit={handleUpdateVehicle}
+          vehicule={{
+            ...chauffeur.vehicule,
+            category: chauffeur.vehicule.type || "Confort",
+            owner: {
+              id: chauffeur.id,
+              name: chauffeur.name,
+              matricule: chauffeur.matricule,
+              email: chauffeur.email,
+              phone: chauffeur.phone,
+              address: {
+                city: chauffeur.garageAffiliation?.city || "",
+                latitude: 0,
+                longitude: 0,
+              },
+              status: chauffeur.status,
+              isOnline: chauffeur.isOnline,
+              avatar: chauffeur.avatar,
+              garageAffiliation: null, // On ne peut pas mapper facilement, on met null
+            },
+          }}
+          loading={false}
+        />
       )}
     </div>
   );

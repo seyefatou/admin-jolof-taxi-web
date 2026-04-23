@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Icon } from "@iconify/react";
 import { ChauffeurProps } from "@/services/chauffeur-service";
 import { GaragesProps } from "@/services/garage-service";
@@ -102,6 +102,9 @@ export default function ChauffeurFormModal({
   const [hasGarage, setHasGarage] = useState(false);
   const [hasVehicle, setHasVehicle] = useState(false);
   const [selectedGarageId, setSelectedGarageId] = useState<string>("");
+  const [garageSearch, setGarageSearch] = useState("");
+  const [showGarageDropdown, setShowGarageDropdown] = useState(false);
+  const garageDropdownRef = useRef<HTMLDivElement>(null);
 
   // Vehicle info
   const [vehicleData, setVehicleData] = useState({
@@ -165,6 +168,8 @@ export default function ChauffeurFormModal({
       setHasGarage(false);
       setHasVehicle(false);
       setSelectedGarageId("");
+      setGarageSearch("");
+      setShowGarageDropdown(false);
       setVehicleData({
         brand: "",
         model: "",
@@ -180,6 +185,18 @@ export default function ChauffeurFormModal({
       setBooklet(null);
     }
   }, [isOpen, chauffeur]);
+
+  // Fermer le dropdown garage au clic exterieur
+  useEffect(() => {
+    if (!showGarageDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (garageDropdownRef.current && !garageDropdownRef.current.contains(event.target as Node)) {
+        setShowGarageDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showGarageDropdown]);
 
   // Validation
   const isPersonalInfoValid =
@@ -536,18 +553,119 @@ export default function ChauffeurFormModal({
           {hasGarage && (
             <div className="border border-gray-300 rounded-xl p-4 mb-4">
               <h3 className="text-sm font-bold text-gray-500 mb-3">Selection du garage</h3>
-              <select
-                value={selectedGarageId}
-                onChange={(e) => setSelectedGarageId(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
-              >
-                <option value="">Selectionner un garage</option>
-                {garages.map((garage) => (
-                  <option key={garage.id} value={garage.id}>
-                    {garage.name} - {garage.city}
-                  </option>
-                ))}
-              </select>
+              {(() => {
+                const selectedGarage = garages.find((g) => g.id.toString() === selectedGarageId);
+                const searchLower = garageSearch.toLowerCase().trim();
+                const filteredGarages = searchLower
+                  ? garages.filter(
+                      (g) =>
+                        g.name?.toLowerCase().includes(searchLower) ||
+                        g.city?.toLowerCase().includes(searchLower) ||
+                        g.address?.toLowerCase().includes(searchLower)
+                    )
+                  : garages;
+                return (
+                  <div className="relative" ref={garageDropdownRef}>
+                    <div
+                      onClick={() => setShowGarageDropdown((v) => !v)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus-within:border-yellow-400 focus-within:ring-2 focus-within:ring-yellow-200 cursor-pointer flex items-center justify-between gap-2 bg-white"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Icon icon="mdi:garage" className="text-yellow-500 shrink-0" />
+                        {selectedGarage ? (
+                          <span className="text-sm text-gray-800 truncate">
+                            {selectedGarage.name} - {selectedGarage.city}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">Selectionner un garage</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {selectedGarageId && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedGarageId("");
+                              setGarageSearch("");
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                            title="Effacer"
+                          >
+                            <Icon icon="mdi:close" className="text-sm" />
+                          </button>
+                        )}
+                        <Icon
+                          icon="mdi:chevron-down"
+                          className={`text-gray-500 transition-transform ${showGarageDropdown ? "rotate-180" : ""}`}
+                        />
+                      </div>
+                    </div>
+
+                    {showGarageDropdown && (
+                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                        <div className="p-2 border-b border-gray-100">
+                          <div className="relative">
+                            <Icon
+                              icon="mdi:magnify"
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+                            <input
+                              type="text"
+                              autoFocus
+                              value={garageSearch}
+                              onChange={(e) => setGarageSearch(e.target.value)}
+                              placeholder="Rechercher un garage (nom, ville, adresse)..."
+                              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          {filteredGarages.length > 0 ? (
+                            filteredGarages.map((garage) => {
+                              const isSelected = garage.id.toString() === selectedGarageId;
+                              return (
+                                <button
+                                  key={garage.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedGarageId(garage.id.toString());
+                                    setShowGarageDropdown(false);
+                                    setGarageSearch("");
+                                  }}
+                                  className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors ${
+                                    isSelected
+                                      ? "bg-yellow-50 text-yellow-800 font-semibold"
+                                      : "hover:bg-gray-50 text-gray-700"
+                                  }`}
+                                >
+                                  <Icon
+                                    icon={isSelected ? "mdi:garage-variant" : "mdi:garage"}
+                                    className={isSelected ? "text-yellow-600" : "text-gray-400"}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="truncate">{garage.name}</div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {garage.city}
+                                      {garage.address ? ` • ${garage.address}` : ""}
+                                    </div>
+                                  </div>
+                                  {isSelected && <Icon icon="mdi:check" className="text-yellow-600" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="px-4 py-6 text-center text-sm text-gray-400">
+                              <Icon icon="mdi:garage-alert" className="text-2xl mx-auto mb-1" />
+                              Aucun garage trouve
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

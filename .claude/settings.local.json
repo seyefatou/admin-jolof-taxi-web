@@ -9,7 +9,12 @@
       "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" log --oneline -5)",
       "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" add src/common/urls/env-axios.ts)",
       "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" commit -m \"$\\(cat <<''EOF''\nfix: use proxy for all API requests to avoid CORS issues\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" push)"
+      "Bash(git -C \"C:\\\\Users\\\\hp\\\\Desktop\\\\admin_jolof_v2\\\\jolof_admin_v2\" push)",
+      "WebFetch(domain:api.joloftaxi.sn)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "mcp__clickup__get_workspace_tasks",
+      "Bash(git push:*)"
     ]
   }
 }
