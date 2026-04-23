@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CardDashmini } from "@/components/cards/dash-card";
+import DriversOnlineByHourChart from "@/components/analytics/DriversOnlineByHourChart";
 import { SERVICE_DASH } from "@/services/dashboard-service";
 import { SERVICE_COURSE, CourseProps } from "@/services/course-service";
 import formaterPrixCFAAbrege from "@/utils/number-format";
@@ -436,6 +437,10 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <DriversOnlineByHourChart />
       </div>
     </div>
   );

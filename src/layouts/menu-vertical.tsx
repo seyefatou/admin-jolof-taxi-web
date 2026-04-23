@@ -119,7 +119,14 @@ export const MenuVertical: React.FC<MenuVerticalProps> = ({
       text: "Dashboard",
       subText: "Apercu des activites",
       icon: "carbon:dashboard",
-      isActive: isPathActive(`/trafic`),
+      isActive: isPathActive(`/trafic${TRAFIC.trafic_dashboard}`),
+    },
+    {
+      path: `/trafic${TRAFIC.analytics}`,
+      text: "Analytics",
+      subText: "Statistiques avancees",
+      icon: "mdi:chart-box-outline",
+      isActive: isPathActive(`/trafic${TRAFIC.analytics}`),
     },
     {
       path: `/reservations${RESERVATIONS.RESERVATION_LIST}`,
