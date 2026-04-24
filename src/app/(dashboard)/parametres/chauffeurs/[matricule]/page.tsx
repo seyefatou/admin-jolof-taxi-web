@@ -739,7 +739,7 @@ export default function ChauffeurDetails() {
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Categorie</p>
-                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || chauffeur.vehicule.category || "N/A"}</p>
+                    <p className="text-lg font-bold text-gray-800">{chauffeur.vehicule.type || "N/A"}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center justify-between">
@@ -1465,6 +1465,7 @@ export default function ChauffeurDetails() {
           onSubmit={handleUpdateVehicle}
           vehicule={{
             ...chauffeur.vehicule,
+            type: chauffeur.vehicule.type ?? undefined,
             category: chauffeur.vehicule.type || "Confort",
             owner: {
               id: chauffeur.id,
